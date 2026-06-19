@@ -1,0 +1,2380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Maybe — LP Model Flows</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,500;1,9..144,600&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#FAFAF8; --ink:#0F1729; --ink-2:#475569; --ink-3:#94A3B8;
+    --line:#E7E5DF; --line-2:#D6D3CB; --card:#FFFFFF;
+    --blue:#3B82F6; --green:#22C55E; --amber:#F59E0B; --red:#DC2626; --purple:#A855F7;
+    --blue-ink:#1D4ED8; --green-ink:#15803D; --amber-ink:#B45309; --red-ink:#B91C1C;
+    --yes:#22C55E; --no:#3B82F6; --usdc:#0F1729;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'IBM Plex Sans',system-ui,sans-serif;background:var(--bg);color:var(--ink);line-height:1.5;
+    -webkit-font-smoothing:antialiased;padding:clamp(18px,3vw,40px) clamp(14px,3vw,40px) 80px}
+  .wrap{max-width:1040px;margin:0 auto}
+  .display{font-family:'Fraunces',Georgia,serif;font-optical-sizing:auto}
+  .mono{font-family:'IBM Plex Mono',ui-monospace,monospace;font-variant-numeric:tabular-nums}
+  .eyebrow{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-3)}
+
+  header{border-bottom:1px solid var(--line);padding-bottom:20px;margin-bottom:8px}
+  h1.display{font-size:clamp(26px,4.5vw,40px);font-weight:500;letter-spacing:-.02em;margin-top:8px;line-height:1.05}
+  h1 em{font-style:italic;color:var(--green-ink)}
+  .sub{color:var(--ink-2);font-size:14.5px;max-width:62ch;margin-top:10px}
+  .grad{height:3px;border-radius:2px;margin-top:18px;background:linear-gradient(90deg,var(--blue),var(--green) 50%,var(--amber))}
+
+  /* tabs */
+  .tabs{display:flex;gap:2px;border-bottom:1px solid var(--line);margin:44px 0 0;flex-wrap:wrap;align-items:flex-end}
+  .tab-group{display:flex;flex-wrap:wrap;align-items:flex-end;position:relative;padding:24px 10px 0;margin-left:16px;border-radius:10px 10px 0 0}
+  .tab-group::before{content:attr(data-label);position:absolute;top:3px;left:10px;font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.12em;text-transform:uppercase;font-weight:700;padding:2px 8px;border-radius:5px}
+  /* CLOB group — blue family */
+  .tab-group.grp-clob{background:#EFF4FB}
+  .tab-group.grp-clob::before{content:attr(data-label);color:#fff;background:var(--blue)}
+  /* AMM group — amber family */
+  .tab-group.grp-amm{background:#FBF6EC}
+  .tab-group.grp-amm::before{content:attr(data-label);color:#fff;background:var(--amber)}
+  .tab{background:none;border:none;padding:12px 16px 14px;cursor:pointer;text-align:left;border-bottom:3px solid transparent;
+    margin-bottom:-1px;transition:all .15s;border-radius:6px 6px 0 0}
+  .tab:hover{background:rgba(0,0,0,.04)}
+  .tab .t-name{font-family:'Fraunces',serif;font-size:15px;font-weight:600;color:var(--ink-2);display:block}
+  .tab .t-sub{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-3);display:block;margin-top:1px}
+  .tab.active{border-bottom-color:var(--ink)}
+  .tab.active .t-name{color:var(--ink)}
+  .tab.win.active{border-bottom-color:var(--green)}
+  .tab.win.active .t-name{color:var(--green-ink)}
+  .tab-intro{background:#F1F0EC;border-radius:8px 8px 0 0;border-bottom:3px solid transparent;margin-right:6px}
+  .tab-intro.active{background:var(--ink);border-bottom-color:var(--ink)}
+  .tab-intro.active .t-name{color:#fff}
+  .tab-intro.active .t-sub{color:rgba(255,255,255,.7)}
+  /* curves tab — purple accent */
+  .tab-curves{background:#F4F1FB;border-radius:8px 8px 0 0;margin-right:6px}
+  .tab-curves.active{border-bottom-color:var(--purple)}
+  .tab-curves.active .t-name{color:var(--purple)}
+
+  /* introduction panel comparison tables */
+  .intro-family{margin:32px 0}
+  .intro-family-h{font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3);font-weight:600;margin-bottom:8px}
+  .intro-family-sub{font-family:'IBM Plex Sans',sans-serif;font-size:13.5px;color:var(--ink-2);line-height:1.5;margin:0 0 18px;max-width:78ch}
+  .intro-table{width:100%;border-collapse:separate;border-spacing:0;font-family:'IBM Plex Sans',sans-serif;font-size:13px;color:var(--ink);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+  .intro-table thead th{background:#FAFAF8;text-align:left;padding:11px 14px;font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);font-weight:600;border-bottom:1px solid var(--line)}
+  .intro-table tbody td{padding:14px;border-bottom:1px solid var(--line);vertical-align:top;line-height:1.45}
+  .intro-table tbody tr:last-child td{border-bottom:none}
+  .intro-table tbody tr.clickable:hover{background:#FAFAF8;cursor:pointer}
+  .intro-table .row-name{font-family:'Fraunces',serif;font-size:15px;font-weight:600;color:var(--ink);line-height:1.25;display:block}
+  .intro-table .row-sub{font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-3);display:block;margin-top:3px}
+  .intro-table .pnl-pos{color:var(--green-ink);font-weight:600;font-family:'IBM Plex Mono',monospace;font-size:14px}
+  .intro-table .pnl-neg{color:var(--red);font-weight:600;font-family:'IBM Plex Mono',monospace;font-size:14px}
+  .intro-table .pnl-flat{color:var(--ink-2);font-weight:600;font-family:'IBM Plex Mono',monospace;font-size:14px}
+  .intro-table .pnl-sub{display:block;font-family:'IBM Plex Mono',monospace;font-size:9.5px;color:var(--ink-3);font-weight:400;margin-top:2px;letter-spacing:0;text-transform:none}
+  .intro-table .vpill{display:inline-block;padding:3px 9px;border-radius:11px;font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.05em;text-transform:uppercase;font-weight:600;white-space:nowrap}
+  .intro-table .vpill.v-win{background:#ECFDF5;color:var(--green-ink)}
+  .intro-table .vpill.v-out{background:#FEF2F2;color:var(--red)}
+  .intro-table .vpill.v-def{background:#FEF3C7;color:#92400E}
+  .intro-table .vpill.v-lim{background:#F1F0EC;color:var(--ink-2)}
+  .intro-table .prod-link{display:inline-block;font-family:'IBM Plex Sans',sans-serif;font-size:13px;font-weight:600;color:var(--blue-ink);text-decoration:none;border-bottom:1.5px solid var(--blue);padding-bottom:1px;transition:opacity .15s}
+  .intro-table .prod-link:hover{opacity:.65}
+  .intro-table .prod-link::after{content:" ↗";font-size:10px;color:var(--blue);vertical-align:super}
+  .intro-table .prod-note{display:block;font-family:'IBM Plex Mono',monospace;font-size:9.5px;color:var(--ink-3);margin-top:4px;letter-spacing:0;line-height:1.35}
+  .intro-howto{margin-top:28px;padding:14px 18px;background:#FAFAF8;border-left:3px solid var(--ink-3);font-size:13px;color:var(--ink-2);line-height:1.55;border-radius:0 6px 6px 0}
+  .intro-howto b{color:var(--ink)}
+
+  /* invariant curves panel */
+  .curves-shell{display:grid;grid-template-columns:320px 1fr;gap:24px;margin-top:24px;align-items:start}
+  .curves-controls{display:flex;flex-direction:column;gap:14px}
+  .curve-pick{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+  .curve-pick button{font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:600;padding:9px 6px;border:1px solid var(--line2);background:#fff;color:var(--ink-2);border-radius:7px;cursor:pointer;transition:all .15s}
+  .curve-pick button:hover{background:#F1F0EC}
+  .curve-pick button.on{background:var(--purple);color:#fff;border-color:var(--purple)}
+  .curve-eq{font-family:'IBM Plex Mono',monospace;font-size:12.5px;color:var(--purple);background:#F4F1FB;padding:8px 10px;border-radius:6px;margin:10px 0 0;text-align:center;font-weight:600}
+  .curves-stage{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px;display:flex;align-items:center;justify-content:center}
+  .curves-stage svg{width:100%;height:auto;max-width:520px}
+  .readouts{display:flex;flex-direction:column;gap:0}
+  .readout-row{display:flex;justify-content:space-between;align-items:baseline;padding:9px 0;border-bottom:1px solid var(--line)}
+  .readout-row:last-child{border-bottom:none}
+  .readout-row .rk{font-family:'IBM Plex Sans',sans-serif;font-size:12px;color:var(--ink-2)}
+  .readout-row .rv{font-family:'IBM Plex Mono',monospace;font-size:15px;font-weight:600;color:var(--ink)}
+  .readout-row .rv.pos{color:var(--green-ink)} .readout-row .rv.neg{color:var(--red)}
+  .curves-explain{margin-top:24px;padding:16px 20px;background:#FAFAF8;border-radius:8px;font-size:13.5px;color:var(--ink-2);line-height:1.6}
+  .curves-explain b{color:var(--ink)}
+  .curves-explain .ce-h{font-family:'Fraunces',serif;font-size:16px;font-weight:600;color:var(--ink);margin:0 0 8px;display:block}
+  @media (max-width:860px){.curves-shell{grid-template-columns:1fr}}
+
+  /* panel */
+  .panel{display:none;padding-top:26px}
+  .panel.active{display:block}
+  .verdict-pill{display:inline-block;font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.1em;
+    text-transform:uppercase;padding:4px 10px;border-radius:999px;font-weight:600;margin-bottom:12px}
+  .pill-win{background:#DCFCE7;color:var(--green-ink)} .pill-out{background:#FEE2E2;color:var(--red-ink)}
+  .pill-defer{background:#FEF3C7;color:var(--amber-ink)}
+  .panel h2{font-family:'Fraunces',serif;font-size:24px;font-weight:600;letter-spacing:-.01em}
+  .panel .lede{font-size:14px;color:var(--ink-2);max-width:64ch;margin-top:6px}
+
+  /* stage layout */
+  .stage-shell{display:grid;grid-template-columns:1fr 268px;gap:20px;margin-top:22px}
+  .stage{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:6px;position:relative;min-height:430px}
+  svg.scene{width:100%;height:auto;display:block}
+
+  /* controls column */
+  .controls{display:flex;flex-direction:column;gap:14px}
+  .ctl-card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px}
+  .ctl-card h4{font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3);margin-bottom:12px}
+  .ctl{margin-bottom:14px}
+  .ctl:last-child{margin-bottom:0}
+  .ctl label{display:flex;justify-content:space-between;font-size:12.5px;color:var(--ink-2);margin-bottom:5px}
+  .ctl label b{font-family:'IBM Plex Mono',monospace;color:var(--ink);font-weight:600}
+  input[type=range]{width:100%;accent-color:var(--green);height:4px}
+  .seg-toggle{display:flex;gap:0;border:1px solid var(--line-2);border-radius:8px;overflow:hidden}
+  .seg-toggle button{flex:1;border:none;background:var(--card);padding:7px 4px;font-family:'IBM Plex Mono',monospace;
+    font-size:11px;cursor:pointer;color:var(--ink-2);font-weight:500}
+  .seg-toggle button.on-yes{background:var(--yes);color:#fff}
+  .seg-toggle button.on-no{background:var(--no);color:#fff}
+  .seg-toggle button+button{border-left:1px solid var(--line-2)}
+
+  .playbar{display:flex;gap:8px}
+  .btn{flex:1;border:none;border-radius:9px;padding:11px;font-family:'IBM Plex Sans',sans-serif;font-weight:600;
+    font-size:13px;cursor:pointer;transition:all .15s}
+  .btn-play{background:var(--ink);color:#fff} .btn-play:hover{background:#1E293B}
+  .btn-replay{background:var(--card);color:var(--ink-2);border:1px solid var(--line-2);flex:0 0 auto;padding:11px 14px}
+  .btn-replay:hover{background:#F1F0EC}
+  .btn:disabled{opacity:.4;cursor:default}
+
+  /* step narration */
+  .steps{margin-top:2px}
+  .step{display:flex;gap:11px;padding:9px 0;border-top:1px solid var(--line);opacity:.4;transition:opacity .3s}
+  .step:first-child{border-top:none}
+  .step.on{opacity:1}
+  .step .sn{font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:600;color:#fff;background:var(--line-2);
+    width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background .3s}
+  .step.on .sn{background:var(--ink)}
+  .step .stext{font-size:12.5px;color:var(--ink-2);line-height:1.4}
+  .step.on .stext{color:var(--ink)}
+  .step .stext b{font-weight:600}
+
+  /* outcome ledger */
+  .ledger{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line);border:1px solid var(--line);
+    border-radius:12px;overflow:hidden;margin-top:20px}
+  .ledger>div{background:var(--card);padding:15px 16px}
+  .ledger .lk{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3)}
+  .ledger .lv{font-family:'IBM Plex Mono',monospace;font-size:22px;font-weight:600;margin-top:5px;letter-spacing:-.01em}
+  .lv.pos{color:var(--green-ink)} .lv.neg{color:var(--red-ink)} .lv.zero{color:var(--ink-2)}
+  .ledger .ln{font-size:11.5px;color:var(--ink-3);margin-top:3px}
+
+  .takeaway{background:#F8F6F1;border:1px solid var(--line);border-left:3px solid var(--green);border-radius:10px;
+    padding:15px 18px;margin-top:20px;font-size:13.5px;color:var(--ink);line-height:1.55}
+  .takeaway.bad{border-left-color:var(--red)} .takeaway.defer{border-left-color:var(--amber)}
+  .takeaway b{font-weight:600}
+  .takeaway .eyebrow{display:block;margin-bottom:6px}
+
+  .gloss{margin-top:14px;font-size:11.5px;color:var(--ink-3);line-height:1.65}
+  .gloss b{color:var(--ink-2);font-weight:600}
+  .mc-stats{display:flex;gap:16px;flex-wrap:wrap;font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink-2);margin-top:10px}
+  .mc-stats b{font-weight:600;color:var(--ink)}
+  .mc-stats .pos{color:var(--green-ink)} .mc-stats .neg{color:var(--red-ink)}
+  .method{font-size:11px;color:var(--ink-3);margin-top:16px;line-height:1.55;border-top:1px dashed var(--line-2);padding-top:10px}
+  .method b{color:var(--ink-2);font-weight:600}
+
+  .risk-banner{display:flex;align-items:center;gap:10px;margin-top:14px;padding:9px 14px;border-radius:9px;
+    font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.02em}
+  .risk-banner .rb-k{letter-spacing:.12em;text-transform:uppercase;font-size:9.5px;opacity:.65;white-space:nowrap}
+  .risk-banner.rb-green{background:#F0FDF4;color:var(--green-ink);border:1px solid #BBF7D0}
+  .risk-banner.rb-red{background:#FEF2F2;color:var(--red-ink);border:1px solid #FECACA}
+  .risk-banner.rb-amber{background:#FFFBEB;color:var(--amber-ink);border:1px solid #FDE68A}
+  .risk-banner.rb-ink{background:#F1F5F9;color:var(--ink);border:1px solid var(--line-2)}
+
+  /* ---- simulation detail block ---- */
+  .sim-detail{margin-top:30px;border-top:1px solid var(--line);padding-top:26px}
+  .sim-grid{display:grid;grid-template-columns:300px 1fr;gap:22px;align-items:start}
+  .sim-top{display:grid;grid-template-columns:300px 1fr;gap:22px;align-items:start;margin-bottom:16px}
+  .sim-charts{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start}
+  .sim-charts .chart-block{margin-top:0}
+  @media (max-width:760px){.sim-top{grid-template-columns:1fr}.sim-charts{grid-template-columns:1fr}}
+  .sim-card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px}
+  .sim-card h4{font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--ink-3);margin-bottom:14px;display:flex;justify-content:space-between;align-items:center}
+  .mini-reroll{font-family:'IBM Plex Mono',monospace;font-size:10px;border:1px solid var(--line-2);background:var(--card);border-radius:6px;padding:4px 8px;cursor:pointer;color:var(--ink-2);letter-spacing:.04em}
+  .mini-reroll:hover{background:#F1F0EC}
+  .sp{margin-bottom:16px}
+  .sp:last-child{margin-bottom:0}
+  .sp label{display:flex;justify-content:space-between;font-size:12px;color:var(--ink-2);margin-bottom:6px}
+  .sp label b{font-family:'IBM Plex Mono',monospace;color:var(--ink);font-weight:600}
+  .sp .rng{display:flex;justify-content:space-between;font-family:'IBM Plex Mono',monospace;font-size:9.5px;color:var(--ink-3);margin-top:2px}
+
+  /* results stat grid */
+  .res-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+  .res-grid>div{background:var(--card);padding:13px 14px}
+  .res-grid .rk{font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
+  .res-grid .rv{font-family:'IBM Plex Mono',monospace;font-size:19px;font-weight:600;margin-top:4px;letter-spacing:-.01em}
+  .res-grid .rv.pos{color:var(--green-ink)} .res-grid .rv.neg{color:var(--red-ink)}
+  .res-grid .rn{font-size:10.5px;color:var(--ink-3);margin-top:2px}
+
+  .chart-block{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin-top:16px}
+  .chart-block h5{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);margin-bottom:2px}
+  .chart-block .csub{font-size:10.5px;color:var(--ink-3);margin-bottom:12px}
+  .chart-legend{display:flex;gap:14px;font-size:10.5px;color:var(--ink-2);margin-top:8px;flex-wrap:wrap}
+  .chart-legend span{display:inline-flex;align-items:center;gap:5px}
+  .chart-legend i{width:9px;height:9px;border-radius:2px;display:inline-block}
+
+  /* market log table */
+  .log-wrap{margin-top:16px;background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+  .log-head{display:flex;justify-content:space-between;align-items:center;padding:14px 18px 10px}
+  .log-head h5{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3)}
+  .log-head .lc{font-size:10.5px;color:var(--ink-3)}
+  .log-scroll{max-height:300px;overflow-y:auto}
+  table.mlog{width:100%;border-collapse:collapse;font-size:11.5px}
+  table.mlog th{position:sticky;top:0;background:#F8F6F1;font-family:'IBM Plex Mono',monospace;font-size:9px;
+    letter-spacing:.05em;text-transform:uppercase;color:var(--ink-3);font-weight:500;text-align:left;padding:7px 10px;border-bottom:1px solid var(--line)}
+  table.mlog td{padding:6px 10px;border-bottom:1px solid #F1F0EC;font-family:'IBM Plex Mono',monospace}
+  table.mlog td.mkt{font-family:'IBM Plex Sans',sans-serif}
+  table.mlog tr:last-child td{border-bottom:none}
+  .lp-pos{color:var(--green-ink)} .lp-neg{color:var(--red-ink)} .lp-zero{color:var(--ink-3)}
+  .out-yes{color:var(--green-ink);font-weight:600} .out-no{color:var(--blue-ink);font-weight:600}
+
+  /* strengths / weaknesses / used-by */
+  .swu{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-top:16px}
+  .swu-card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 18px}
+  .swu-card h5{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase;margin-bottom:12px}
+  .swu-card.str h5{color:var(--green-ink)} .swu-card.wk h5{color:var(--red-ink)} .swu-card.use h5{color:var(--ink-3)}
+  .swu-card ul{list-style:none}
+  .swu-card li{font-size:12px;color:var(--ink-2);padding:5px 0 5px 20px;position:relative;line-height:1.4}
+  .swu-card.str li:before{content:"+";position:absolute;left:0;color:var(--green);font-weight:700;font-family:'IBM Plex Mono',monospace}
+  .swu-card.wk li:before{content:"\2212";position:absolute;left:0;color:var(--red);font-weight:700;font-family:'IBM Plex Mono',monospace}
+  .swu-card.use li:before{content:"\2192";position:absolute;left:0;color:var(--ink-3);font-family:'IBM Plex Mono',monospace}
+
+  @media (max-width:860px){
+    .sim-grid{grid-template-columns:1fr}
+    .res-grid{grid-template-columns:repeat(3,1fr)}
+    .swu{grid-template-columns:1fr}
+  }
+
+  /* svg helpers */
+  .chip{font-family:'IBM Plex Mono',monospace;font-weight:600}
+  .lbl-mono{font-family:'IBM Plex Mono',monospace}
+  .actor-label{font-family:'Fraunces',serif;font-weight:600}
+  text{fill:var(--ink)}
+
+  footer{border-top:1px solid var(--line);margin-top:46px;padding-top:16px;font-size:11px;color:var(--ink-3);
+    display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
+
+  @media (max-width:860px){
+    .stage-shell{grid-template-columns:1fr}
+    .ledger{grid-template-columns:1fr 1fr}
+  }
+  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+  :focus-visible{outline:2px solid var(--blue);outline-offset:2px;border-radius:4px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="eyebrow">Maybe · Internal Tool · How the money moves</div>
+    <h1 class="display">One micro-moment, <em>nine ways</em> to provide liquidity.</h1>
+    <div class="grad"></div>
+    <div class="gloss"><b>Glossary</b> — <b>LP</b>: capital that backs the market · <b>vig / margin</b>: the house's built-in price edge · <b>cold-start</b>: a new market with no liquidity yet · <b>impermanent loss</b>: AMM LP value destroyed as the price moves to certainty (a.k.a. divergence loss) · <b>informed flow</b>: sharp money betting after the outcome is effectively known but before the market closes</div>
+  </header>
+
+  <div class="tabs" id="tabs">
+    <button class="tab tab-intro active" data-m="intro"><span class="t-name">Introduction</span><span class="t-sub">All models · compared</span></button>
+    <button class="tab tab-curves" data-m="curves"><span class="t-name">Invariant Curves</span><span class="t-sub">Interactive · play with AMMs</span></button>
+    <div class="tab-group grp-clob" data-label="CLOB">
+      <button class="tab" data-m="clob"><span class="t-name">CLOB</span><span class="t-sub">Order book · MM-quoted</span></button>
+    </div>
+    <div class="tab-group grp-amm" data-label="AMM · curve-priced">
+      <button class="tab win" data-m="vault"><span class="t-name">Game Vault MM</span><span class="t-sub">Recommended</span></button>
+      <button class="tab win" data-m="pari"><span class="t-name">Parimutuel</span><span class="t-sub">Recommended</span></button>
+      <button class="tab" data-m="cpmm"><span class="t-name">CPMM</span><span class="t-sub">Rejected</span></button>
+      <button class="tab" data-m="lmsr"><span class="t-name">LMSR</span><span class="t-sub">Bounded-loss curve</span></button>
+      <button class="tab" data-m="pmamm"><span class="t-name">PM-AMM</span><span class="t-sub">Paradigm · Gaussian</span></button>
+      <button class="tab" data-m="dpmamm"><span class="t-name">Dynamic PM-AMM</span><span class="t-sub">PM-AMM + time decay</span></button>
+      <button class="tab" data-m="hybrid"><span class="t-name">Hybrid AMM + CLOB</span><span class="t-sub">Small bets AMM · big bets book</span></button>
+    </div>
+  </div>
+
+  <!-- ============ PANELS ============ -->
+
+  <div class="panel active" id="p-intro">
+
+    <div class="intro-family">
+      <div class="intro-family-h">CLOB · Order-book matching</div>
+      <p class="intro-family-sub">A separate family: orders match against quotes posted by active MMs. Flexible — MMs can reprice on any model and capture skew arbitrage — but requires sustained MM presence. Without active MMs, the market goes dark.</p>
+      <table class="intro-table">
+        <thead><tr>
+          <th style="width:18%">Model</th>
+          <th style="width:28%">Mechanism</th>
+          <th style="width:22%">LP / MM position</th>
+          <th style="width:12%">Sim P&amp;L</th>
+          <th style="width:20%">Live example</th>
+        </tr></thead>
+        <tbody>
+          <tr class="clickable" data-jump="clob">
+            <td><span class="row-name">CLOB</span><span class="row-sub">Order book</span></td>
+            <td>Order book; MM posts two-sided quotes, matched against incoming orders</td>
+            <td>Net short the side traders are buying; flat when quotes don't fill</td>
+            <td><span class="pnl-flat">−0.3%</span><span class="pnl-sub">0 / 30 winning matches</span></td>
+            <td><a class="prod-link" href="https://polymarket.com" target="_blank" rel="noopener">Polymarket</a><span class="prod-note">CLOB since late 2022 · also Kalshi, BetFair</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="intro-family">
+      <div class="intro-family-h">AMM · curve-priced &amp; pool-funded</div>
+      <p class="intro-family-sub">Eight pool-based models. The LP commits capital to a pool, the protocol prices every trade from a rule (curve, fixed-odds quote, or redistribution mechanism), and the LP eats whatever the rule mispriced. Differ by what the LP holds at resolution, how much they can lose, and whether they earn anything in expectation.</p>
+      <table class="intro-table">
+        <thead><tr>
+          <th style="width:18%">Model</th>
+          <th style="width:28%">Mechanism</th>
+          <th style="width:22%">LP holds at resolution</th>
+          <th style="width:12%">Sim P&amp;L</th>
+          <th style="width:20%">Live example</th>
+        </tr></thead>
+        <tbody>
+          <tr class="clickable" data-jump="vault">
+            <td><span class="row-name">Game Vault MM</span><span class="row-sub">Recommended</span></td>
+            <td>Fixed-odds book; live odds engine + 6–8% vig per micro-moment</td>
+            <td>Cash; takes the other side of each bet</td>
+            <td><span class="pnl-pos">+0.9%</span><span class="pnl-sub">25 / 30 winning matches</span></td>
+            <td><a class="prod-link" href="https://bookmakerxyz.app/" target="_blank" rel="noopener">Bookmaker.xyz</a><span class="prod-note">Azuro-powered pooled LP vault</span></td>
+          </tr>
+          <tr class="clickable" data-jump="pari">
+            <td><span class="row-name">Parimutuel</span><span class="row-sub">Recommended</span></td>
+            <td>Tote: stakes pooled, winners split pool by time-weighted entry</td>
+            <td>Nothing — just rakes a commission off the pool</td>
+            <td><span class="pnl-pos">+1.0%</span><span class="pnl-sub">30 / 30 — risk-free rake</span></td>
+            <td><a class="prod-link" href="https://cade.market/" target="_blank" rel="noopener">Pumpcade</a><span class="prod-note">cade.market · also horse-racing totes</span></td>
+          </tr>
+          <tr class="clickable" data-jump="cpmm">
+            <td><span class="row-name">CPMM</span><span class="row-sub">Rejected</span></td>
+            <td>Uniswap-style x·y = k constant-product curve; price = y / (x + y)</td>
+            <td>YES + NO reserve shares; up to 80% of L lost at extreme prices</td>
+            <td><span class="pnl-neg">−14.2%</span><span class="pnl-sub">0 / 30 winning matches</span></td>
+            <td><a class="prod-link" href="https://polymarket.com" target="_blank" rel="noopener">Polymarket</a><span class="prod-note">AMM era (pre-2022) · Gnosis FPMM, Omen</span></td>
+          </tr>
+          <tr class="clickable" data-jump="lmsr">
+            <td><span class="row-name">LMSR</span><span class="row-sub">Bounded-loss curve</span></td>
+            <td>Hanson cost function C(q) = b·ln(Σe^(qᵢ/b)); price = derivative</td>
+            <td>Short the shares it sold; max loss capped at b·ln(2) ≈ 0.693·b</td>
+            <td><span class="pnl-neg">−6.7%</span><span class="pnl-sub">bound prevents catastrophe</span></td>
+            <td><a class="prod-link" href="https://manifold.markets" target="_blank" rel="noopener">Manifold</a><span class="prod-note">Play-money LMSR · also Augur v1</span></td>
+          </tr>
+          <tr class="clickable" data-jump="pmamm">
+            <td><span class="row-name">PM-AMM</span><span class="row-sub">Paradigm · Gaussian</span></td>
+            <td>Gaussian invariant: price = Φ((y−x) / L); uniform LVR across prices</td>
+            <td>Smaller YES + NO reserves; loss = L·φ(Φ⁻¹(p)) per market</td>
+            <td><span class="pnl-neg">−13.5%</span><span class="pnl-sub">beats CPMM but still loses</span></td>
+            <td><a class="prod-link" href="https://www.paradigm.xyz/2024/11/pm-amm" target="_blank" rel="noopener">Paradigm research</a><span class="prod-note">Nov 2024 · Morpheus impl. (Aptos)</span></td>
+          </tr>
+          <tr class="clickable" data-jump="dpmamm">
+            <td><span class="row-name">Dynamic PM-AMM</span><span class="row-sub">PM-AMM + time decay</span></td>
+            <td>PM-AMM with L(t) = L₀·√(T−t); liquidity shrinks toward expiry</td>
+            <td>Time-decaying reserves; bounded total LVR over market lifetime</td>
+            <td><span class="pnl-neg">−8.9%</span><span class="pnl-sub">cleanest AMM math</span></td>
+            <td><a class="prod-link" href="https://www.paradigm.xyz/2024/11/pm-amm" target="_blank" rel="noopener">Paradigm research</a><span class="prod-note">Reference impl. only · no live consumer use</span></td>
+          </tr>
+          <tr class="clickable" data-jump="hybrid">
+            <td><span class="row-name">Hybrid AMM + CLOB</span><span class="row-sub">Two-tier routing</span></td>
+            <td>Small bets → AMM tier (Gaussian curve); large bets → House book (vig)</td>
+            <td>AMM reserves + house counterparty position (split per stake size)</td>
+            <td><span class="pnl-neg">−7.4%</span><span class="pnl-sub">AMM loss + house edge</span></td>
+            <td><a class="prod-link" href="https://limitless.exchange" target="_blank" rel="noopener">Limitless</a><span class="prod-note">AMM + CLOB on Base</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="intro-howto">
+      <b>How to read the Sim P&amp;L column</b>&nbsp;·&nbsp; Each return is the mean LP return across 30 random match seeds on a $100,000 vault, 25 micro-moments per match, 4% informed flow share. The "winning matches" count is how many of those 30 seeds left the LP with a positive return. Two categories produce positive returns: <b>fixed-odds books with a live odds feed</b> (Game Vault) and <b>parimutuel</b> (LP doesn't take risk). Every curve-based AMM loses in expectation against the informed share, even with the best-known mechanism math.
+    </div>
+  </div>
+
+  <div class="panel" id="p-curves">
+    <span class="verdict-pill" style="background:#F4F1FB;color:var(--purple)">Interactive · learn how AMMs work</span>
+    <h2 class="display">Invariant Curves — how an AMM prices a trade</h2>
+    <p class="lede">Every AMM is just a <b>curve</b> plus a rule: <em>keep the pool on the curve</em>. When you buy YES, the pool slides along its invariant to a new point, and the slope at that point is the price you pay. Drag the sliders to see how each curve quotes a price, how much slippage a trade eats, and how much the LP is left holding at resolution.</p>
+
+    <div class="curves-shell">
+      <div class="curves-controls">
+        <div class="ctl-card">
+          <h4>Curve</h4>
+          <div class="curve-pick" id="curve-pick">
+            <button data-c="cpmm" class="on">CPMM</button>
+            <button data-c="lmsr">LMSR</button>
+            <button data-c="pmamm">PM-AMM</button>
+            <button data-c="csmm">CSMM</button>
+          </div>
+          <p class="curve-eq" id="curve-eq">x · y = k</p>
+        </div>
+        <div class="ctl-card">
+          <h4>Inputs</h4>
+          <div class="ctl"><label>Pool liquidity (each side) <b id="cv-L-v">$1,000</b></label><input type="range" id="cv-L" min="200" max="5000" step="100" value="1000"></div>
+          <div class="ctl"><label>Trade size — buy YES <b id="cv-T-v">$400</b></label><input type="range" id="cv-T" min="0" max="4000" step="50" value="400"></div>
+          <div class="ctl"><label>Resolves <b id="cv-out-lbl">YES wins</b></label>
+            <div class="seg-toggle" id="cv-out"><button data-o="yes" class="on-yes">YES wins</button><button data-o="no">NO wins</button></div>
+          </div>
+        </div>
+        <div class="ctl-card readouts" id="cv-readouts"></div>
+      </div>
+      <div class="curves-stage">
+        <svg id="svg-curves" viewBox="0 0 520 420"></svg>
+      </div>
+    </div>
+
+    <div class="curves-explain" id="curves-explain"></div>
+  </div>
+
+  <div class="panel" id="p-vault">
+    <span class="verdict-pill pill-win">Recommended launch model</span>
+    <h2 class="display">Game Vault Market Maker</h2>
+    <p class="lede">One match-level LP vault. An odds engine prices each micro-moment from a live probability model, adds vig, and skews odds for the vault's own exposure. The vault takes the other side of every bet — it's an LP-funded sportsbook book, not an AMM.</p>
+    <div class="risk-banner rb-green"><span class="rb-k">Who takes the risk</span><span>THE VAULT — an LP-funded house warehouses every bet, prices it, caps it, and charges vig for it</span></div>
+
+    <div class="stage-shell">
+      <div class="stage"><svg class="scene" id="svg-vault" viewBox="0 0 560 440"></svg></div>
+      <div class="controls">
+        <div class="ctl-card">
+          <h4>Inputs</h4>
+          <div class="ctl"><label>User stake <b id="v-stake-v">$500</b></label><input type="range" id="v-stake" min="100" max="3000" step="100" value="500"></div>
+          <div class="ctl"><label>Model prob (YES) <b id="v-prob-v">0.40</b></label><input type="range" id="v-prob" min="10" max="90" step="5" value="40"></div>
+          <div class="ctl"><label>Vig / margin <b id="v-vig-v">6%</b></label><input type="range" id="v-vig" min="2" max="12" step="1" value="6"></div>
+          <div class="ctl"><label>Outcome</label>
+            <div class="seg-toggle" id="v-out"><button data-o="yes" class="on-yes">YES wins</button><button data-o="no">NO wins</button></div>
+          </div>
+        </div>
+        <div class="playbar">
+          <button class="btn btn-play" id="v-play">▶ Play flow</button>
+          <button class="btn btn-replay" id="v-replay">↻</button>
+        </div>
+        <div class="ctl-card steps" id="v-steps"></div>
+      </div>
+    </div>
+
+    <div class="ledger" id="v-ledger"></div>
+    <div class="takeaway"><span class="eyebrow">Why this wins</span>The vault behaves like a house: it quotes from a real probability model, pockets vig on every market, pays winners and absorbs losers from <b>one shared pot</b> across all 25 micro-moments. No per-market cold start, and exposure-skewed odds plus liability caps keep any single match from blowing the vault. The risk it can't dodge is <b>informed flow inside the latency window</b> — see the CPMM and the latency note.</div>
+  </div>
+
+  <div class="panel" id="p-cpmm">
+    <span class="verdict-pill pill-out">Rejected</span>
+    <h2 class="display">CPMM — constant product</h2>
+    <p class="lede">A fresh YES/NO pool seeds at 50/50 and prices purely off inventory: x·y = k. No probability model — the price only moves because someone traded. Watch the LP get left holding the losing side at resolution.</p>
+    <div class="risk-banner rb-red"><span class="rb-k">Who takes the risk</span><span>THE POOL — passively, with no view, no defense, and no risk manager</span></div>
+
+    <div class="stage-shell">
+      <div class="stage"><svg class="scene" id="svg-cpmm" viewBox="0 0 560 440"></svg></div>
+      <div class="controls">
+        <div class="ctl-card">
+          <h4>Inputs</h4>
+          <div class="ctl"><label>Seed liquidity (each side) <b id="c-seed-v">$5,000</b></label><input type="range" id="c-seed" min="1000" max="10000" step="500" value="5000"></div>
+          <div class="ctl"><label>User buys YES <b id="c-buy-v">$2,000</b></label><input type="range" id="c-buy" min="200" max="6000" step="200" value="2000"></div>
+          <div class="ctl"><label>Outcome</label>
+            <div class="seg-toggle" id="c-out"><button data-o="yes" class="on-yes">YES wins</button><button data-o="no">NO wins</button></div>
+          </div>
+        </div>
+        <div class="playbar">
+          <button class="btn btn-play" id="c-play">▶ Play flow</button>
+          <button class="btn btn-replay" id="c-replay">↻</button>
+        </div>
+        <div class="ctl-card steps" id="c-steps"></div>
+      </div>
+    </div>
+
+    <div class="ledger" id="c-ledger"></div>
+    <div class="takeaway bad"><span class="eyebrow">Why it's rejected</span>The price is a function of <b>inventory, not truth</b>. A buyer pushes YES up the curve; the LP passively hands out value as the price moves, then at resolution is stuck holding the worthless losing-side tokens. Across ~25 skewed micro-moments per match this impermanent loss compounds to 15–20% of the pool — and it's structural, not tunable. CPMM also <b>needs price discovery the product already has</b> from live odds, so it's solving a problem Maybe doesn't have.</div>
+  </div>
+
+  <div class="panel" id="p-pari">
+    <span class="verdict-pill pill-win">Recommended — risk-free for the LP</span>
+    <h2 class="display">Parimutuel — time-weighted</h2>
+    <p class="lede">No LP is the counterparty. Every stake goes into one pot; at resolution the winning side splits the whole pot. In Maybe's time-weighted design, <b>earlier-correct bets get a fatter slice</b> — bet right and fast, win more. The house only earns rake — which means <b>LP capital is never at risk</b> and the pool can't be picked off by informed flow. The trade-off is that it needs two-sided liquidity to form natural odds, so it works best alongside the Game Vault rather than alone.</p>
+    <div class="risk-banner rb-green"><span class="rb-k">Who takes the risk</span><span>NOBODY — players bet each other and the house just rakes, so the LP carries zero counterparty risk</span></div>
+
+    <div class="stage-shell">
+      <div class="stage"><svg class="scene" id="svg-pari" viewBox="0 0 560 440"></svg></div>
+      <div class="controls">
+        <div class="ctl-card">
+          <h4>Inputs</h4>
+          <div class="ctl"><label>Players <b id="pr-n-v">4</b></label><input type="range" id="pr-n" min="3" max="5" step="1" value="4"></div>
+          <div class="ctl"><label>Stake per player <b id="pr-stake-v">$300</b></label><input type="range" id="pr-stake" min="100" max="800" step="50" value="300"></div>
+          <div class="ctl"><label>Rake <b id="pr-rake-v">5%</b></label><input type="range" id="pr-rake" min="0" max="10" step="1" value="5"></div>
+          <div class="ctl"><label>Outcome</label>
+            <div class="seg-toggle" id="pr-out"><button data-o="yes" class="on-yes">YES wins</button><button data-o="no">NO wins</button></div>
+          </div>
+        </div>
+        <div class="playbar">
+          <button class="btn btn-play" id="pr-play">▶ Play flow</button>
+          <button class="btn btn-replay" id="pr-replay">↻</button>
+        </div>
+        <div class="ctl-card steps" id="pr-steps"></div>
+      </div>
+    </div>
+
+    <div class="ledger" id="pr-ledger"></div>
+    <div class="takeaway good"><span class="eyebrow">Why it's recommended alongside the vault</span>Mechanically the LP is <b>never at risk</b> — the house carries zero counterparty exposure and just collects rake, so informed flow can't bleed the pool the way it does with every AMM. That makes it a strong complement to the Game Vault: the vault provides instant two-sided liquidity, parimutuel adds a risk-free rake pool on top. The one weakness to manage is <b>cold-start</b>: with thin early flow the pot is tiny and payouts look unattractive, so it needs the vault (or seeded liquidity) to bootstrap each market. The time-weighting rewards betting right and fast, which keeps engagement high once the pool fills.</div>
+  </div>
+
+  <div class="panel" id="p-clob">
+    <span class="verdict-pill pill-defer">Year 2 layer</span>
+    <h2 class="display">CLOB — order book</h2>
+    <p class="lede">A market maker posts resting bids and asks because they've <b>priced the event</b>. A taker fills against the best quote. Great economics — when markets live long enough for MMs to react and recover inventory. For 15-second markets, the book is mostly empty.</p>
+    <div class="risk-banner rb-amber"><span class="rb-k">Who takes the risk</span><span>INDIVIDUAL MMs — optionally, with their own un-mutualized capital; no MM, no market</span></div>
+
+    <div class="stage-shell">
+      <div class="stage"><svg class="scene" id="svg-clob" viewBox="0 0 560 440"></svg></div>
+      <div class="controls">
+        <div class="ctl-card">
+          <h4>Inputs</h4>
+          <div class="ctl"><label>MM react time <b id="cl-lat-v">3s</b></label><input type="range" id="cl-lat" min="1" max="14" step="1" value="3"></div>
+          <div class="ctl"><label>Market lifespan <b id="cl-life-v">15s</b></label><input type="range" id="cl-life" min="8" max="40" step="1" value="15"></div>
+          <div class="ctl"><label>User stake <b id="cl-stake-v">$500</b></label><input type="range" id="cl-stake" min="100" max="2000" step="100" value="500"></div>
+        </div>
+        <div class="playbar">
+          <button class="btn btn-play" id="cl-play">▶ Play flow</button>
+          <button class="btn btn-replay" id="cl-replay">↻</button>
+        </div>
+        <div class="ctl-card steps" id="cl-steps"></div>
+      </div>
+    </div>
+
+    <div class="ledger" id="cl-ledger"></div>
+    <div class="takeaway defer"><span class="eyebrow">Why it's the Y2 layer, not launch</span>One MM quoting fast isn't a book — you need <b>committed competing MMs on both sides</b>, each with $50k–$500k of their own capital, and none of it is mutualised. When the MM's react time eats a big share of a short market, coverage collapses (~30% of sub-minute markets go unquoted). CLOB shines on continuous and long-duration markets and for the US-regulated layer later — <b>not</b> the cold-start MVP.</div>
+  </div>
+
+  <div class="panel" id="p-lmsr">
+    <span class="verdict-pill pill-out">Rejected — AMM family</span>
+    <h2 class="display">LMSR — Logarithmic Market Scoring Rule</h2>
+    <p class="lede">Hanson's classic prediction-market AMM. Prices come from a logarithmic cost function with a liquidity parameter <b>b</b>. Bounded LP loss (unlike CPMM) — but still a curve with no real odds, and still picked off on sub-minute sports markets.</p>
+    <div class="risk-banner rb-red"><span class="rb-k">Who takes the risk</span><span>THE POOL — passively, exposed to <em>bounded</em> loss of <b>b·ln(2)</b> per market, paid in adverse selection by sharps</span></div>
+
+    <div class="stage-shell">
+      <div class="stage"><svg class="scene" id="svg-lmsr" viewBox="0 0 560 440"></svg></div>
+      <div class="controls">
+        <div class="ctl-card">
+          <h4>Inputs</h4>
+          <div class="ctl"><label>Liquidity b <b id="lm-b-v">$500</b></label><input type="range" id="lm-b" min="100" max="2000" step="100" value="500"></div>
+          <div class="ctl"><label>User buys YES <b id="lm-buy-v">$300</b></label><input type="range" id="lm-buy" min="50" max="1500" step="50" value="300"></div>
+          <div class="ctl"><label>Outcome</label>
+            <div class="seg-toggle" id="lm-out"><button data-o="yes" class="on-yes">YES wins</button><button data-o="no">NO wins</button></div>
+          </div>
+        </div>
+        <div class="playbar">
+          <button class="btn btn-play" id="lm-play">▶ Play flow</button>
+          <button class="btn btn-replay" id="lm-replay">↻</button>
+        </div>
+        <div class="ctl-card steps" id="lm-steps"></div>
+      </div>
+    </div>
+
+    <div class="ledger" id="lm-ledger"></div>
+    <div class="takeaway bad"><span class="eyebrow">Why it's rejected</span>LMSR's <b>max loss is bounded</b> at b·ln(2) ≈ 0.693b — that's its big claim to fame over CPMM. But this is a subsidy budget, not an edge: there's <b>no model price feeding the curve</b>, so the AMM lets users buy winning shares cheaply at the start of skewed markets, then pays them at resolution. The fix Manifold uses (play money) doesn't work for a real-money in-play product. Used in production by <b>Manifold Markets, Augur v1, Polymarket pre-CPMM, Gnosis Conditional Tokens (LMSR mode)</b>.</div>
+  </div>
+
+  <div class="panel" id="p-pmamm">
+    <span class="verdict-pill pill-out">Promising — but not for sub-minute</span>
+    <h2 class="display">PM-AMM — Paradigm's Gaussian AMM</h2>
+    <p class="lede">Paradigm's 2024 design built specifically for prediction markets. The trading curve comes from a <b>Gaussian score model</b>, which concentrates liquidity near the most likely prices and gives a <b>uniform loss-vs-rebalancing (LVR)</b> rate across the whole price range. The first AMM with structural improvements over CPMM/LMSR for prediction markets.</p>
+    <div class="risk-banner rb-amber"><span class="rb-k">Who takes the risk</span><span>THE POOL — but with a <em>uniform</em> LVR shape: at extreme prices it loses much less than CPMM (3% at p=0.99 vs CPMM's 80%)</span></div>
+
+    <div class="stage-shell">
+      <div class="stage"><svg class="scene" id="svg-pmamm" viewBox="0 0 560 440"></svg></div>
+      <div class="controls">
+        <div class="ctl-card">
+          <h4>Inputs</h4>
+          <div class="ctl"><label>Liquidity L <b id="pm-L-v">$5,000</b></label><input type="range" id="pm-L" min="1000" max="20000" step="500" value="5000"></div>
+          <div class="ctl"><label>User buys YES <b id="pm-buy-v">$1,000</b></label><input type="range" id="pm-buy" min="200" max="5000" step="200" value="1000"></div>
+          <div class="ctl"><label>Pre-trade YES price <b id="pm-p-v">0.50</b></label><input type="range" id="pm-p" min="10" max="90" step="5" value="50"></div>
+          <div class="ctl"><label>Outcome</label>
+            <div class="seg-toggle" id="pm-out"><button data-o="yes" class="on-yes">YES wins</button><button data-o="no">NO wins</button></div>
+          </div>
+        </div>
+        <div class="playbar">
+          <button class="btn btn-play" id="pm-play">▶ Play flow</button>
+          <button class="btn btn-replay" id="pm-replay">↻</button>
+        </div>
+        <div class="ctl-card steps" id="pm-steps"></div>
+      </div>
+    </div>
+
+    <div class="ledger" id="pm-ledger"></div>
+    <div class="takeaway defer"><span class="eyebrow">Why it's the strongest pure-AMM option — but still not the launch model</span>PM-AMM solves the <b>extreme-price bleed</b> that kills CPMM/LMSR: by concentrating liquidity around the most likely price, an LP holding a 0.95 YES side loses ~5% of pool, not 50%. The curve is also <b>model-aware</b> — it knows prediction markets aren't ordinary tokens. For long-duration markets (politics, elections, weather), this is a real upgrade. For sub-minute in-play sports, the same problem remains: <b>the curve has no live odds feed</b>, so it's still a price-taker against informed flow inside a 10-second window. Used in production by <b>Polymarket exploring it, Limitless considering, multiple research deployments</b>.</div>
+  </div>
+
+  <div class="panel" id="p-dpmamm">
+    <span class="verdict-pill pill-defer">Best AMM math — wrong product fit</span>
+    <h2 class="display">Dynamic PM-AMM — time-decaying liquidity</h2>
+    <p class="lede">PM-AMM's killer extension. Liquidity L scales with <b>√(T−t)</b> — the closer to resolution, the smaller the AMM gets. This <b>caps total expected LVR</b> over the market's life: LPs aren't punished by the volatility spike near expiry. Mathematically the cleanest AMM in production today.</p>
+    <div class="risk-banner rb-amber"><span class="rb-k">Who takes the risk</span><span>THE POOL — with the lowest LVR of any AMM. For a 60-min market, total expected loss ≈ 2·L·φ(0) regardless of how prices move</span></div>
+
+    <div class="stage-shell">
+      <div class="stage"><svg class="scene" id="svg-dpmamm" viewBox="0 0 560 440"></svg></div>
+      <div class="controls">
+        <div class="ctl-card">
+          <h4>Inputs</h4>
+          <div class="ctl"><label>Initial liquidity L₀ <b id="dp-L-v">$5,000</b></label><input type="range" id="dp-L" min="1000" max="20000" step="500" value="5000"></div>
+          <div class="ctl"><label>User stake <b id="dp-buy-v">$1,000</b></label><input type="range" id="dp-buy" min="200" max="5000" step="200" value="1000"></div>
+          <div class="ctl"><label>Time-to-expiry at trade <b id="dp-t-v">75%</b></label><input type="range" id="dp-t" min="5" max="95" step="5" value="75"></div>
+          <div class="ctl"><label>Outcome</label>
+            <div class="seg-toggle" id="dp-out"><button data-o="yes" class="on-yes">YES wins</button><button data-o="no">NO wins</button></div>
+          </div>
+        </div>
+        <div class="playbar">
+          <button class="btn btn-play" id="dp-play">▶ Play flow</button>
+          <button class="btn btn-replay" id="dp-replay">↻</button>
+        </div>
+        <div class="ctl-card steps" id="dp-steps"></div>
+      </div>
+    </div>
+
+    <div class="ledger" id="dp-ledger"></div>
+    <div class="takeaway defer"><span class="eyebrow">Why it's the cleanest math — and still not Maybe's launch model</span>Dynamic PM-AMM is the right answer to "what's the most LP-friendly AMM possible for prediction markets". For markets with hours-to-weeks horizons, the time-decay protects LPs from the volatility spike that destroys other AMMs near expiry. <b>The reason Maybe doesn't lead with it: it's still passive math against informed flow.</b> Sub-minute markets have so little time for arbitrage to settle that even the cleanest AMM can't compete with a vault that actively reprices on a live odds feed. <b>Right answer for long-duration markets in a Year 2 layer.</b> Production: <b>Paradigm reference implementation, several research deployments testing dynamic-L curves on Base</b>.</div>
+  </div>
+
+  <div class="panel" id="p-hybrid">
+    <span class="verdict-pill pill-defer">Considered — vault wins on simplicity</span>
+    <h2 class="display">Hybrid AMM + House</h2>
+    <p class="lede">Two-tier liquidity. Small bets hit an <b>AMM curve</b> (cheap to operate, always-on, fast UX). Big bets get smart-routed to the <b>house book</b> (model-priced, exposure-managed). Captures AMM's cold-start fix and the house's discipline on size. The cost: two systems to build, two risk models to manage.</p>
+    <div class="risk-banner rb-amber"><span class="rb-k">Who takes the risk</span><span>THE POOL takes <em>both</em> — AMM impermanent loss on small flow + book liability on big flow, with smart-routing deciding which</span></div>
+
+    <div class="stage-shell">
+      <div class="stage"><svg class="scene" id="svg-hybrid" viewBox="0 0 560 440"></svg></div>
+      <div class="controls">
+        <div class="ctl-card">
+          <h4>Inputs</h4>
+          <div class="ctl"><label>Routing threshold <b id="hb-t-v">$500</b></label><input type="range" id="hb-t" min="100" max="2000" step="100" value="500"></div>
+          <div class="ctl"><label>User stake <b id="hb-stake-v">$300</b></label><input type="range" id="hb-stake" min="100" max="3000" step="100" value="300"></div>
+          <div class="ctl"><label>Model prob (YES) <b id="hb-prob-v">0.40</b></label><input type="range" id="hb-prob" min="10" max="90" step="5" value="40"></div>
+          <div class="ctl"><label>House vig <b id="hb-vig-v">6%</b></label><input type="range" id="hb-vig" min="2" max="12" step="1" value="6"></div>
+          <div class="ctl"><label>Outcome</label>
+            <div class="seg-toggle" id="hb-out"><button data-o="yes" class="on-yes">YES wins</button><button data-o="no">NO wins</button></div>
+          </div>
+        </div>
+        <div class="playbar">
+          <button class="btn btn-play" id="hb-play">▶ Play flow</button>
+          <button class="btn btn-replay" id="hb-replay">↻</button>
+        </div>
+        <div class="ctl-card steps" id="hb-steps"></div>
+      </div>
+    </div>
+
+    <div class="ledger" id="hb-ledger"></div>
+    <div class="takeaway defer"><span class="eyebrow">Why considered — and why the pure vault still wins</span>The smart-routing intuition is right: keep the AMM for retail dust where the LVR is tiny, route real money to a managed book. <b>But the vault already does this</b> by capping exposure per market — the &ldquo;AMM tier&rdquo; mostly buys you a way to quote when no one's there to price, which a model-fed odds engine already gives you. Cost-benefit doesn't pay: <b>two codepaths, two settlement flows, two risk teams</b>, for a tier the vault didn't need. Worth revisiting if the product expands to long-duration markets where AMM convenience matters more. Used in production by <b>Polymarket (CPMM AMM + operator-subsidized liquidity), Limitless (Hybrid AMM+CLOB), Stake-style sportsbooks (book + AMM-quoted exotics)</b>.</div>
+  </div>
+
+
+  <footer>
+    <span>Maybe LP flows · play-driven money-flow animations · matches the LP Model Simulator visual system</span>
+    <span class="mono">Game Vault MM · CPMM · time-weighted Parimutuel · CLOB</span>
+  </footer>
+
+</div>
+
+<script>
+"use strict";
+const SVGNS="http://www.w3.org/2000/svg";
+const C={ink:"#0F1729",ink2:"#475569",ink3:"#94A3B8",line:"#E7E5DF",line2:"#D6D3CB",
+  blue:"#3B82F6",green:"#22C55E",amber:"#F59E0B",red:"#DC2626",purple:"#A855F7",
+  greenInk:"#15803D",redInk:"#B91C1C",blueInk:"#1D4ED8",amberInk:"#B45309",
+  yes:"#22C55E",no:"#3B82F6",usdc:"#0F1729"};
+const fmt=n=>"$"+Math.round(n).toLocaleString();
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+function el(tag,attrs,parent){const e=document.createElementNS(SVGNS,tag);for(const k in attrs)e.setAttribute(k,attrs[k]);if(parent)parent.appendChild(e);return e;}
+function clear(svg){while(svg.firstChild)svg.removeChild(svg.firstChild);}
+function txt(svg,x,y,s,o={}){const t=el("text",{x,y,"text-anchor":o.anchor||"middle","font-size":o.size||13,fill:o.fill||C.ink,"font-weight":o.weight||400},svg);t.setAttribute("class",o.cls||"");t.textContent=s;return t;}
+
+// generic animated token chip moving along a path of points
+async function flyChip(svg,from,to,label,color,opts={}){
+  const g=el("g",{opacity:0},svg);
+  const r=Math.max(opts.r||21,18);
+  const c=el("circle",{cx:from.x,cy:from.y,r,fill:color,stroke:"#fff","stroke-width":3},g);
+  const t=el("text",{x:from.x,y:from.y+4,"text-anchor":"middle","font-size":Math.max(opts.fs||11.5,10.5),fill:"#fff","font-weight":700},g);
+  t.setAttribute("class","chip");t.textContent=label;
+  // fade in
+  const steps=opts.steps||42;
+  for(let i=0;i<=8;i++){g.setAttribute("opacity",i/8);await sleep(22);}
+  for(let i=1;i<=steps;i++){
+    const k=i/steps, ke=opts.ease===false?k:(k<.5?2*k*k:1-Math.pow(-2*k+2,2)/2);
+    c.setAttribute("cx",from.x+(to.x-from.x)*ke);c.setAttribute("cy",from.y+(to.y-from.y)*ke);
+    t.setAttribute("x",from.x+(to.x-from.x)*ke);t.setAttribute("y",from.y+(to.y-from.y)*ke+4);
+    await sleep(26);
+  }
+  await sleep(260); // let the chip rest at its destination so it's readable
+  if(opts.vanish){for(let i=8;i>=0;i--){g.setAttribute("opacity",i/8);await sleep(22);}g.remove();}
+  return g;
+}
+function pulse(node){node.animate?node.animate([{opacity:1},{opacity:.4},{opacity:1}],{duration:1000,iterations:1}):0;}
+
+// step list rendering
+function renderSteps(containerId,arr){
+  const c=document.getElementById(containerId);c.innerHTML="";
+  arr.forEach((s,i)=>{
+    const d=document.createElement("div");d.className="step";d.id=containerId+"-"+i;
+    d.innerHTML=`<span class="sn">${i+1}</span><span class="stext">${s}</span>`;
+    c.appendChild(d);
+  });
+}
+function lightStep(containerId,i){
+  document.querySelectorAll("#"+containerId+" .step").forEach(s=>s.classList.remove("on"));
+  const node=document.getElementById(containerId+"-"+i);if(node)node.classList.add("on");
+}
+function renderLedger(id,rows){
+  const c=document.getElementById(id);c.innerHTML="";
+  rows.forEach(r=>{
+    const cls=r.v>0?"pos":(r.v<0?"neg":"zero");
+    const sign=r.v>0?"+":"";
+    const d=document.createElement("div");
+    d.innerHTML=`<div class="lk">${r.k}</div><div class="lv ${r.disp?'':cls}">${r.disp||sign+fmt(r.v)}</div><div class="ln">${r.n||""}</div>`;
+    c.appendChild(d);
+  });
+}
+
+// ============================================================ STATE
+const state={
+  vault:{out:"yes"}, cpmm:{out:"yes"}, pari:{out:"yes"},
+  lmsr:{out:"yes"}, pmamm:{out:"yes"}, dpmamm:{out:"yes"}, hybrid:{out:"yes"}
+};
+let running={};
+
+// ---------- helpers to draw static actors ----------
+function drawActor(svg,x,y,r,fill,stroke,label,sub,opts={}){
+  el("circle",{cx:x,cy:y,r,fill,stroke,"stroke-width":opts.sw||2.5},svg);
+  if(label)txt(svg,x,y-(sub?6:-4),label,{size:opts.ls||15,weight:600,cls:"actor-label",fill:opts.lf||C.ink});
+  if(sub)txt(svg,x,y+13,sub,{size:10,fill:C.ink3,cls:"lbl-mono"});
+}
+
+/* ================================================================
+   GAME VAULT MM
+================================================================ */
+function vaultParams(){
+  return {
+    stake:+document.getElementById("v-stake").value,
+    prob:+document.getElementById("v-prob").value/100,
+    vig:+document.getElementById("v-vig").value/100,
+    out:state.vault.out
+  };
+}
+function drawVaultBase(svg,p){
+  clear(svg);
+  // odds engine box (top)
+  el("rect",{x:170,y:14,width:220,height:54,rx:10,fill:"#F0FDF4",stroke:C.green,"stroke-width":1.5},svg);
+  txt(svg,280,34,"ODDS ENGINE",{size:11,cls:"lbl-mono",fill:C.greenInk,weight:600});
+  const yesQ=Math.min(.92,Math.max(.05,p.prob+p.vig/2));
+  txt(svg,280,52,`model ${p.prob.toFixed(2)} + vig → quote YES ${yesQ.toFixed(2)}`,{size:10.5,cls:"lbl-mono",fill:C.ink2});
+  // small feed inputs above engine
+  txt(svg,280,8,"live feed · stats · book odds · exposure",{size:8.5,cls:"lbl-mono",fill:C.ink3});
+  // vault (center)
+  el("circle",{cx:280,cy:250,r:92,fill:"#ECFDF5",stroke:C.green,"stroke-width":3},svg);
+  txt(svg,280,238,"GAME VAULT",{size:12,cls:"lbl-mono",fill:C.ink3,weight:600});
+  txt(svg,280,270,fmt(100000),{size:26,weight:700,cls:"display"}).setAttribute("id","v-vaultamt");
+  txt(svg,280,250,"LP capital · the house",{size:9.5,cls:"lbl-mono",fill:C.green});
+  el("line",{x1:280,y1:68,x2:280,y2:158,stroke:C.green,"stroke-dasharray":"3 4","stroke-width":1.5},svg);
+  // user (bottom left)
+  drawActor(svg,90,250,46,"#fff",C.no,"User",`backs YES`,{ls:14});
+  // micro-moment chip (bottom)
+  el("rect",{x:200,y:392,width:160,height:36,rx:18,fill:"#fff",stroke:C.line2,"stroke-width":1.5},svg);
+  txt(svg,280,415,'"Penalty scored?"',{size:12,weight:600}).setAttribute("id","v-moment");
+}
+async function runVault(){
+  if(running.vault)return; running.vault=true;
+  const svg=document.getElementById("svg-vault"); const p=vaultParams();
+  document.getElementById("v-play").disabled=true;
+  drawVaultBase(svg,p);
+  renderLedger("v-ledger",[{k:"Resolving…",v:0,disp:"—"},{k:"",v:0,disp:""}]);
+  const userPt={x:90,y:250}, vaultPt={x:280,y:250}, momentPt={x:280,y:392};
+  const yesQuote=Math.min(.92,Math.max(.05,p.prob+p.vig/2));
+  // step 1 moment opens
+  lightStep("v-steps",0); pulse(document.getElementById("v-moment")); await sleep(1500);
+  // step 2 engine quotes
+  lightStep("v-steps",1); await flyChip(svg,{x:280,y:60},vaultPt,"odds",C.green,{vanish:true,r:15,fs:9}); await sleep(550);
+  // step 3 user stakes -> vault
+  lightStep("v-steps",2);
+  await flyChip(svg,userPt,vaultPt,fmt(p.stake),C.no,{vanish:true});
+  document.getElementById("v-vaultamt").textContent=fmt(100000+p.stake);
+  await sleep(550);
+  // step 4 vault books opposite side (liability marker)
+  lightStep("v-steps",3);
+  const liability=p.stake*(1/yesQuote-1); // payout if YES wins, beyond the stake kept
+  txt(svg,420,250,"booked: NO side",{size:10.5,cls:"lbl-mono",fill:C.ink2,anchor:"start"});
+  txt(svg,420,266,`liability if YES: ${fmt(p.stake/yesQuote)}`,{size:9.5,cls:"lbl-mono",fill:C.red,anchor:"start"});
+  await sleep(1300);
+  // step 5 resolve
+  lightStep("v-steps",4); pulse(document.getElementById("v-moment"));
+  document.getElementById("v-moment").textContent = p.out==="yes" ? "SCORED ✓ — YES wins" : "MISSED — NO wins";
+  document.getElementById("v-moment").setAttribute("fill", p.out==="yes"?C.greenInk:C.blueInk);
+  await sleep(1500);
+  // payout flow
+  let vaultPnL, userPnL, payout;
+  if(p.out==="yes"){
+    payout=p.stake/yesQuote;            // total returned to winning user
+    await flyChip(svg,vaultPt,userPt,fmt(payout),C.green,{vanish:true});
+    document.getElementById("v-vaultamt").textContent=fmt(100000+p.stake-payout);
+    vaultPnL=p.stake-payout; userPnL=payout-p.stake;
+  }else{
+    // vault keeps the losing stake
+    payout=0; vaultPnL=p.stake; userPnL=-p.stake;
+    txt(svg,150,210,"stake kept",{size:10,cls:"lbl-mono",fill:C.greenInk});
+  }
+  renderLedger("v-ledger",[
+    {k:"Vault P&L",v:Math.round(vaultPnL),n:p.out==="yes"?"paid winner from pot":"kept losing stake (vig + edge)"},
+    {k:"User P&L",v:Math.round(userPnL),n:p.out==="yes"?`won at ${yesQuote.toFixed(2)} odds`:"lost stake"}
+  ]);
+  running.vault=false; document.getElementById("v-play").disabled=false;
+}
+
+/* ================================================================
+   CPMM
+================================================================ */
+function cpmmParams(){
+  return {seed:+document.getElementById("c-seed").value, buy:+document.getElementById("c-buy").value, out:state.cpmm.out};
+}
+function drawCpmmBase(svg){
+  clear(svg);
+  // two pools
+  el("rect",{x:330,y:120,width:150,height:120,rx:12,fill:"#ECFDF5",stroke:C.green,"stroke-width":2.5},svg);
+  txt(svg,405,142,"YES pool",{size:12,weight:600,cls:"lbl-mono",fill:C.greenInk});
+  txt(svg,405,185,"",{size:22,weight:700,cls:"display"}).setAttribute("id","c-yesamt");
+  txt(svg,405,210,"x",{size:11,cls:"lbl-mono",fill:C.ink3}).setAttribute("id","c-yesx");
+  el("rect",{x:330,y:255,width:150,height:120,rx:12,fill:"#EFF6FF",stroke:C.blue,"stroke-width":2.5},svg);
+  txt(svg,405,277,"NO pool",{size:12,weight:600,cls:"lbl-mono",fill:C.blueInk});
+  txt(svg,405,320,"",{size:22,weight:700,cls:"display"}).setAttribute("id","c-noamt");
+  txt(svg,405,345,"y",{size:11,cls:"lbl-mono",fill:C.ink3}).setAttribute("id","c-noy");
+  // k label
+  txt(svg,405,86,"",{size:11,cls:"lbl-mono",fill:C.ink2}).setAttribute("id","c-k");
+  // price bar
+  txt(svg,405,408,"",{size:12,cls:"lbl-mono",weight:600}).setAttribute("id","c-price");
+  // user
+  drawActor(svg,90,250,46,"#fff",C.green,"User","buys YES",{ls:14});
+  // moment
+  el("rect",{x:120,y:24,width:200,height:34,rx:17,fill:"#fff",stroke:C.line2,"stroke-width":1.5},svg);
+  txt(svg,220,46,'"Penalty scored?"',{size:12,weight:600}).setAttribute("id","c-moment");
+}
+async function runCpmm(){
+  if(running.cpmm)return; running.cpmm=true;
+  const svg=document.getElementById("svg-cpmm"); const p=cpmmParams();
+  document.getElementById("c-play").disabled=true;
+  drawCpmmBase(svg);
+  let x=p.seed, y=p.seed; const k=x*y;
+  const setPools=()=>{
+    document.getElementById("c-yesamt").textContent=fmt(x);
+    document.getElementById("c-noamt").textContent=fmt(y);
+    document.getElementById("c-yesx").textContent="YES shares";
+    document.getElementById("c-noy").textContent="NO shares";
+    document.getElementById("c-k").textContent="k = "+Math.round(x*y).toLocaleString();
+    const pr=y/(x+y);
+    document.getElementById("c-price").textContent=`YES price = ${pr.toFixed(3)}  ·  NO = ${(1-pr).toFixed(3)}`;
+  };
+  // helper to flash a note line in the scene that auto-clears
+  const flashNote=(id,xx,yy,s,fill)=>{const old=document.getElementById(id);if(old)old.remove();
+    const t=txt(svg,xx,yy,s,{size:10.5,cls:"lbl-mono",fill:fill||C.ink2});t.setAttribute("id",id);return t;};
+
+  // step1 seed 50/50
+  lightStep("c-steps",0); setPools(); pulse(document.getElementById("c-moment")); await sleep(1300);
+
+  // step2 user deposits USDC -> mint a COMPLETE SET (D YES + D NO), both reserves rise by D
+  lightStep("c-steps",1);
+  await flyChip(svg,{x:90,y:250},{x:230,y:250},fmt(p.buy)+" USDC",C.no,{vanish:true,r:22,fs:10.5});
+  // split into two minted chips going to each pool
+  await Promise.all([
+    flyChip(svg,{x:230,y:250},{x:405,y:180},fmt(p.buy)+" YES",C.green,{vanish:true,r:16,fs:8.5}),
+    flyChip(svg,{x:230,y:250},{x:405,y:315},fmt(p.buy)+" NO",C.no,{vanish:true,r:16,fs:8.5})
+  ]);
+  const x2=x+p.buy, y2=y+p.buy, k2=x2*y2;   // both reserves +D from the mint
+  x=x2; y=y2;
+  // k changed because liquidity was added; show updated k
+  document.getElementById("c-yesamt").textContent=fmt(x);
+  document.getElementById("c-noamt").textContent=fmt(y);
+  document.getElementById("c-k").textContent="k = "+Math.round(k2).toLocaleString();
+  flashNote("c-note","405","106",`mint: ${fmt(p.buy)} YES + ${fmt(p.buy)} NO`,C.ink2);
+  document.getElementById("c-price").textContent=`YES price = 0.500  ·  NO = 0.500  (still 50/50)`;
+  await sleep(1500);
+
+  // step3 user keeps only YES -> sells the minted NO back into the pool; NO reserve +D again, YES falls to hold k2
+  lightStep("c-steps",2);
+  const yNew=y2+p.buy;            // unwanted NO dumped into NO reserve (2nd +D)
+  const xNew=k2/yNew;             // YES reserve falls to keep k2
+  const yesOut=p.buy+(x2-xNew);   // user's YES = D minted + YES pulled out by the swap
+  await flyChip(svg,{x:90,y:250},{x:405,y:315},fmt(p.buy)+" NO",C.no,{vanish:true,r:16,fs:8.5}); // swap NO in
+  await flyChip(svg,{x:405,y:180},{x:90,y:250},fmt(Math.round(x2-xNew))+" YES",C.green,{vanish:true,r:16,fs:8.5}); // YES out to user
+  x=xNew; y=yNew;
+  setPools(); // now shows YES≈5,444  NO=9,000  k held
+  flashNote("c-note","405","106",`swap: dump NO → pull YES (k held)`,C.amber);
+  const prAfter=y/(x+y);
+  document.getElementById("c-price").setAttribute("fill",C.amber);
+  pulse(document.getElementById("c-price")); await sleep(1500);
+
+  // step4 resolve
+  lightStep("c-steps",3);
+  document.getElementById("c-moment").textContent = p.out==="yes"?"SCORED ✓ — YES = $1":"missed — YES = $0";
+  document.getElementById("c-moment").setAttribute("fill",p.out==="yes"?C.greenInk:C.blueInk);
+  await sleep(1500);
+  // step5 settlement
+  lightStep("c-steps",4);
+  // settle with correct collateral accounting. Total collateral in system = seed + buy.
+  let userPnL, lpPnL;
+  if(p.out==="yes"){
+    // user's YES shares each pay $1; LP is left holding worthless NO + leftover, nets the gap
+    const userGets=yesOut;
+    await flyChip(svg,{x:405,y:185},{x:90,y:250},fmt(userGets),C.green,{vanish:true});
+    userPnL=userGets-p.buy;
+    lpPnL=-userPnL;               // two-party zero-sum: LP eats exactly the user's gain
+  }else{
+    // YES worthless: user loses their whole buy. LP keeps it.
+    userPnL=-p.buy; lpPnL=p.buy;
+    txt(svg,405,300,"NO pool pays",{size:9.5,cls:"lbl-mono",fill:C.blueInk});
+  }
+  renderLedger("c-ledger",[
+    {k:"LP P&L",v:Math.round(lpPnL),n:p.out==="yes"?"left holding the worthless NO side":"kept the user's losing stake"},
+    {k:"User P&L",v:Math.round(userPnL),n:`bought YES at avg ${(p.buy/yesOut).toFixed(3)}`}
+  ]);
+  // emphasize structural point when price moved far
+  running.cpmm=false; document.getElementById("c-play").disabled=false;
+}
+
+/* ================================================================
+   PARIMUTUEL (time-weighted)
+================================================================ */
+function pariParams(){
+  return {n:+document.getElementById("pr-n").value, stake:+document.getElementById("pr-stake").value,
+    rake:+document.getElementById("pr-rake").value/100, out:state.pari.out};
+}
+async function runPari(){
+  if(running.pari)return; running.pari=true;
+  const svg=document.getElementById("svg-pari"); const p=pariParams();
+  document.getElementById("pr-play").disabled=true;
+  clear(svg);
+  // central pot
+  el("circle",{cx:280,cy:175,r:74,fill:"#FAF5FF",stroke:C.purple,"stroke-width":3},svg);
+  txt(svg,280,165,"POT",{size:12,cls:"lbl-mono",fill:C.ink3,weight:600});
+  const potT=txt(svg,280,195,"$0",{size:24,weight:700,cls:"display"});
+  txt(svg,280,228,"winners split · time-weighted",{size:9.5,cls:"lbl-mono",fill:C.purple});
+  // moment
+  el("rect",{x:180,y:18,width:200,height:34,rx:17,fill:"#fff",stroke:C.line2,"stroke-width":1.5},svg);
+  txt(svg,280,40,'"Penalty scored?"',{size:12,weight:600}).setAttribute("id","pr-moment");
+  // players on a wide arc across the bottom — no overlap with pot
+  const players=[];
+  const sides = p.out==="yes" ? ["yes","yes","no","yes","no"] : ["no","yes","no","no","yes"];
+  const speedLbl=["fastest","2nd","3rd","4th","5th"];
+  const slotXs = {3:[110,280,450], 4:[90,225,360,495], 5:[80,180,280,380,480]}[p.n];
+  for(let i=0;i<p.n;i++){
+    const px=slotXs[i], py=370;
+    const side=sides[i];
+    players.push({x:px,y:py,side,order:i});
+    drawActor(svg,px,py,28,"#fff", side==="yes"?C.green:C.blue, "P"+(i+1), side.toUpperCase(),{ls:12,lf:side==="yes"?C.greenInk:C.blueInk});
+    txt(svg,px,py+42,speedLbl[i],{size:8.5,cls:"lbl-mono",fill:C.ink3});
+  }
+  let pot=0;
+  // step1 moment opens
+  lightStep("pr-steps",0); pulse(document.getElementById("pr-moment")); await sleep(1500);
+  // step2 players stake into pot in time order
+  lightStep("pr-steps",1);
+  for(let i=0;i<p.n;i++){
+    await flyChip(svg,{x:players[i].x,y:players[i].y},{x:280,y:175},fmt(p.stake),players[i].side==="yes"?C.green:C.blue,{vanish:true,r:15,fs:9});
+    pot+=p.stake; potT.textContent=fmt(pot);
+    await sleep(450);
+  }
+  await sleep(700);
+  // step3 rake out
+  lightStep("pr-steps",2);
+  const rakeAmt=pot*p.rake; const payable=pot-rakeAmt;
+  if(p.rake>0){ await flyChip(svg,{x:280,y:175},{x:510,y:70},fmt(rakeAmt)+" rake",C.amber,{vanish:true,r:16,fs:8}); potT.textContent=fmt(payable);}
+  await sleep(550);
+  // step4 resolve + time-weighted split
+  lightStep("pr-steps",3);
+  document.getElementById("pr-moment").textContent = p.out==="yes"?"SCORED ✓ — YES wins":"MISSED — NO wins";
+  document.getElementById("pr-moment").setAttribute("fill", p.out==="yes"?C.greenInk:C.blueInk);
+  await sleep(1500);
+  // time weights: earlier correct bet -> higher weight (decay)
+  const winners=players.filter(pl=>pl.side===p.out);
+  let ledgerRows;
+  if(winners.length===0){
+    renderLedger("pr-ledger",[
+      {k:"House P&L",v:Math.round(rakeAmt),n:"rake only — zero risk"},
+      {k:"Players",v:0,disp:"refund",n:"no correct bets this round"}
+    ]);
+  }else{
+    const weights=winners.map(w=>Math.pow(0.62,w.order)); // earlier order = bigger slice
+    const wsum=weights.reduce((a,b)=>a+b,0);
+    const shares=weights.map(w=>payable*w/wsum);
+    // clear the pot's center labels so wedges/labels don't collide
+    potT.textContent="";
+    document.querySelectorAll("#svg-pari text").forEach(t=>{ if(t.textContent==="winners split · time-weighted"||t.textContent==="POT") t.remove(); });
+    // --- draw proportional pie wedges inside the pot, in speed order ---
+    const cx=280, cy=175, R=70;
+    const wedgeCols=[C.green,"#4ADE80","#86EFAC","#BBF7D0","#DCFCE7"];
+    let a0=-Math.PI/2; // start at top
+    for(let i=0;i<winners.length;i++){
+      const frac=weights[i]/wsum, a1=a0+frac*2*Math.PI;
+      const x0=cx+R*Math.cos(a0), y0=cy+R*Math.sin(a0);
+      const x1=cx+R*Math.cos(a1), y1=cy+R*Math.sin(a1);
+      const large=frac>0.5?1:0;
+      const path=`M ${cx} ${cy} L ${x0.toFixed(1)} ${y0.toFixed(1)} A ${R} ${R} 0 ${large} 1 ${x1.toFixed(1)} ${y1.toFixed(1)} Z`;
+      const wedge=el("path",{d:path,fill:wedgeCols[i%wedgeCols.length],stroke:"#fff","stroke-width":2,opacity:0},svg);
+      // label the winner at the wedge midpoint, pushed out near the rim
+      const am=(a0+a1)/2, lr=R*0.74, lx=cx+lr*Math.cos(am), ly=cy+lr*Math.sin(am);
+      const wl=el("text",{x:lx.toFixed(1),y:(ly+4).toFixed(1),"text-anchor":"middle","font-size":i===0?13:11,
+        fill:i<2?"#fff":C.greenInk,"font-weight":700,opacity:0},svg); wl.setAttribute("class","lbl-mono");
+      wl.textContent="P"+(winners[i].order+1);
+      // fade the wedge in, biggest (fastest) first
+      for(let s=0;s<=8;s++){wedge.setAttribute("opacity",(s/8)*0.95);wl.setAttribute("opacity",s/8);await sleep(28);}
+      a0=a1;
+      await sleep(380);
+    }
+    // center caption after wedges drawn
+    txt(svg,cx,cy+3,"split by speed",{size:10,cls:"lbl-mono",fill:C.ink,weight:600});
+    await sleep(600);
+    // --- fly proportionally-sized chips out to each winner, fastest first ---
+    for(let i=0;i<winners.length;i++){
+      const r=12+Math.min(20, shares[i]/payable*46); // radius scales with slice
+      await flyChip(svg,{x:cx,y:cy},{x:winners[i].x,y:winners[i].y-2},fmt(shares[i]),C.green,{vanish:false,r,fs:r>20?10:8.5});
+    }
+    await sleep(400);
+    renderLedger("pr-ledger",[
+      {k:"Fastest winner (P"+(winners[0].order+1)+")",v:Math.round(shares[0]-p.stake),n:`got ${fmt(shares[0])} — biggest slice`},
+      {k:"House P&L",v:Math.round(rakeAmt),n:"rake only — LP capital idle"}
+    ]);
+  }
+  running.pari=false; document.getElementById("pr-play").disabled=false;
+}
+
+/* ================================================================
+   CLOB
+================================================================ */
+function clobParams(){
+  return {lat:+document.getElementById("cl-lat").value, life:+document.getElementById("cl-life").value, stake:+document.getElementById("cl-stake").value};
+}
+async function runClob(){
+  if(running.clob)return; running.clob=true;
+  const svg=document.getElementById("svg-clob"); const p=clobParams();
+  document.getElementById("cl-play").disabled=true;
+  clear(svg);
+  // moment (top center)
+  el("rect",{x:180,y:14,width:200,height:34,rx:17,fill:"#fff",stroke:C.line2,"stroke-width":1.5},svg);
+  txt(svg,280,36,'"Penalty scored?"',{size:12,weight:600}).setAttribute("id","cl-moment");
+
+  // --- ORDER BOOK in the centre ---
+  const bx=205, bw=150, bookTop=80;
+  el("rect",{x:bx,y:bookTop,width:bw,height:300,rx:12,fill:"#fff",stroke:C.line2,"stroke-width":1.5},svg);
+  txt(svg,280,bookTop+22,"ORDER BOOK",{size:11,cls:"lbl-mono",fill:C.ink3,weight:600});
+  txt(svg,280,bookTop+38,"YES — bids by MM",{size:9,cls:"lbl-mono",fill:C.ink3});
+  // resting bid bands (MM liquidity at multiple prices). best (highest) bid fills first.
+  const bands=[
+    {px:0.46, sz:1000}, {px:0.43, sz:1500}, {px:0.40, sz:2000}, {px:0.37, sz:2500}
+  ];
+  const rowH=46, row0=bookTop+58;
+  const bandRects=[];
+  bands.forEach((bd,i)=>{
+    const y=row0+i*rowH;
+    const wFrac=bd.sz/2500; // bar width by size
+    const rect=el("rect",{x:bx+10,y,width:(bw-20)*wFrac,height:30,rx:5,fill:"#FEF3C7",stroke:C.amber,"stroke-width":1,opacity:0},svg);
+    const lbl=el("text",{x:bx+14,y:y+19,"font-size":11,fill:C.amberInk,"font-weight":600,opacity:0},svg);
+    lbl.setAttribute("class","lbl-mono"); lbl.textContent=`${bd.px.toFixed(2)} · ${fmt(bd.sz)}`;
+    bandRects.push({rect,lbl,y,bd});
+  });
+
+  // --- actors: USER left, MM right ---
+  drawActor(svg,80,230,46,"#fff",C.blue,"User","wants YES",{ls:14});
+  drawActor(svg,480,230,46,"#fff",C.amber,"MM","prices event",{ls:14,lf:C.amberInk});
+  txt(svg,480,288,"posts resting bids",{size:9.5,cls:"lbl-mono",fill:C.ink3});
+
+  const covered = p.lat < p.life*0.5;
+
+  // step1: market opens
+  lightStep("cl-steps",0); pulse(document.getElementById("cl-moment")); await sleep(1400);
+
+  // step2: MM posts liquidity across bands (chips fly MM -> each band, then band lights up)
+  lightStep("cl-steps",1);
+  if(covered){
+    for(let i=0;i<bandRects.length;i++){
+      const b=bandRects[i];
+      await flyChip(svg,{x:480,y:230},{x:bx+bw/2,y:b.y+15},`${b.bd.px.toFixed(2)}`,C.amber,{vanish:true,r:14,fs:9});
+      for(let s=0;s<=8;s++){b.rect.setAttribute("opacity",s/8);b.lbl.setAttribute("opacity",s/8);await sleep(26);}
+      await sleep(180);
+    }
+  }else{
+    // too slow: MM never posts in time
+    txt(svg,280,row0+90,"MM too slow —",{size:11,cls:"lbl-mono",fill:C.red,weight:600});
+    txt(svg,280,row0+108,"book stays empty",{size:11,cls:"lbl-mono",fill:C.red,weight:600});
+    await sleep(900);
+  }
+  await sleep(700);
+
+  // step3: user buys YES -> fills against BEST (top) bid band
+  lightStep("cl-steps",2);
+  let userNote, fillNote;
+  if(covered){
+    const best=bandRects[0];
+    // user's order travels to the book, lands just right of the best band's label
+    await flyChip(svg,{x:80,y:230},{x:bx+bw-28,y:best.y+15},fmt(p.stake),C.blue,{vanish:false,r:16,fs:8.5});
+    // best band flips to "filled" green and shrinks (liquidity consumed)
+    best.rect.setAttribute("fill","#DCFCE7");best.rect.setAttribute("stroke",C.green);
+    best.lbl.setAttribute("fill",C.greenInk);best.lbl.textContent=`${best.bd.px.toFixed(2)} · FILLED`;
+    // MM takes the other side -> chip MM to book
+    await flyChip(svg,{x:480,y:230},{x:bx+bw/2,y:best.y+15},"fills",C.amber,{vanish:true,r:14,fs:9});
+    txt(svg,280,bookTop+300+ -8,"",{size:1}); // spacer noop
+    fillNote=`filled at ${best.bd.px.toFixed(2)} vs MM`;
+    userNote="bought YES, top bid";
+  }else{
+    document.getElementById("cl-moment").textContent="market expired — unquoted";
+    document.getElementById("cl-moment").setAttribute("fill",C.red);
+    txt(svg,280,row0+150,"NO FILL — no resting liquidity",{size:11,cls:"lbl-mono",fill:C.red,weight:600});
+    fillNote="MM missed the market"; userNote="no market";
+  }
+  await sleep(1200);
+
+  // step4: ledger
+  lightStep("cl-steps",3);
+  renderLedger("cl-ledger",[
+    {k:"Fill",v:0,disp:covered?"✓ matched":"✗ no fill",n:fillNote},
+    {k:"Market coverage",v:0,disp:covered?"quoted in time":"MISSED",
+      n:covered?`react ${p.lat}s < half of ${p.life}s life`:`react ${p.lat}s too slow for ${p.life}s market`}
+  ]);
+  running.clob=false; document.getElementById("cl-play").disabled=false;
+}
+
+// ============================================================ SIMULATION ENGINE
+// deterministic seeded RNG (mulberry32)
+function rng(seed){let a=seed>>>0;return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+const MKTS=[
+  {e:"⚡",n:"Counter-attack?"},{e:"🎯",n:"Free kick → shot?"},{e:"🎯",n:"Shot on target soon?"},
+  {e:"🚩",n:"Corner next 3 min?"},{e:"🧤",n:"Goalkeeper save next 3'?"},{e:"🤾",n:"Throw-in within 30s?"},
+  {e:"🟨",n:"Yellow card next 10'?"},{e:"🔄",n:"Sub before 60'?"},{e:"📺",n:"VAR review imminent?"},{e:"⚡",n:"Penalty awarded?"}
+];
+function fmtK(v){const a=Math.abs(v);if(a>=1000)return (v<0?"-":"")+"$"+(a/1000).toFixed(a>=10000?0:1)+"k";return (v<0?"-":"")+"$"+Math.round(a);}
+
+const clamp=(v,a,b)=>Math.min(b,Math.max(a,v));
+// Core: simulate one match for a given model. Returns {rows, series, metrics}
+function simulate(model,P){
+  const r=rng(P.seed^(P.users*2654435761)^(P.moments*40503)^Math.round(P.vig*1000)^Math.round((P.inf||0)*977)^Math.round((P.buf||0)*131+(P.mmLat||0)*17+(P.mmLife||0)*7));
+  let pool=P.poolSeed, peak=pool, trough=pool, cumLP=0, cumPl=0, cumIL=0, cumFee=0;
+  const rows=[], series=[{m:0,pool:pool,lp:0,pl:0,il:0,fee:0}];
+  let covered=0, lpWins=0, volTotal=0, volAttempted=0;
+  let vigEarned=0, advLoss=0, cappedVol=0, payoutsPaid=0;
+  const isBook=(model==="vault");
+  for(let i=1;i<=P.moments;i++){
+    const min=+( (i-0.3+r()*0.6) * (P.duration/P.moments) ).toFixed(1);
+    // volume scales with users (more bettors -> bigger markets)
+    const baseVol = (300 + r()*1800) * (P.users/200);
+    volAttempted += baseVol;
+    // true probability of the micro-moment (most are "will X happen soon" — moderately unlikely)
+    const trueP = clamp(0.18 + r()*0.50, 0.05, 0.9);
+    // the odds model estimates trueP with small error
+    const modelP = clamp(trueP + (r()-0.5)*0.08, 0.06, 0.92);
+    const out = r() < trueP ? "yes" : "no";
+    let lpDelta=0, vol=baseVol, quoted=true;
+    let mIL=0, mFee=0;   // per-moment impermanent loss & fees (AMM models only)
+
+    if(isBook){
+      // ---- real bookmaking arithmetic (vault = LP-funded, b-book = operator-funded; same math) ----
+      const v=P.vig, buf=P.buf||0;
+      const qYes=clamp(modelP+v/2,0.06,0.94), qNo=clamp(1-modelP+v/2,0.06,0.94); // overround = qYes+qNo-1 = v
+      // close buffer: shutting the market earlier cuts informed flow hard (exp decay)
+      // but also costs recreational volume (~2.5%/second of lost betting window)
+      const recBase=baseVol*(1-0.025*buf);
+      let split=clamp(modelP+(r()-0.5)*0.30,0.12,0.88);
+      split=split*0.65+0.5*0.35;
+      let yes=recBase*split, no=recBase-yes;
+      // informed flow: sharp money lands on the TRUE outcome side inside the latency window
+      const infVol=baseVol*(P.inf||0)*Math.exp(-buf/4)*(0.5+r());
+      volAttempted+=infVol;
+      if(out==="yes")yes+=infVol; else no+=infVol;
+      // liability caps: max net book loss per market = 3% of pool; excess stake rejected
+      const cap=pool*0.03;
+      const liab=(sS,qS,sO)=>sS*(1-qS)/qS - sO;
+      if(liab(yes,qYes,no)>cap){const allowed=(cap+no)*qYes/(1-qYes); cappedVol+=yes-allowed; yes=allowed;}
+      if(liab(no,qNo,yes)>cap){const allowed=(cap+yes)*qNo/(1-qNo); cappedVol+=no-allowed; no=allowed;}
+      vol=yes+no;
+      // settle: keep losing side; pay winning side at its price
+      if(out==="yes"){ lpDelta = no - yes*(1-qYes)/qYes; payoutsPaid += yes/qYes; }
+      else           { lpDelta = yes - no*(1-qNo)/qNo;  payoutsPaid += no/qNo; }
+      // attribution for the readout
+      vigEarned += Math.max(0,vol-infVol)*v/2;
+      advLoss   += infVol*(1/(out==="yes"?qYes:qNo)-1);
+      covered++;
+    } else if(model==="cpmm"){
+      // ---- closed-form divergence loss: V_LP(p) = seed · 2·sqrt(p(1-p)) held to resolution ----
+      const s=Math.min(5000,Math.max(1500,baseVol*1.6))*(P.poolSeed/100000); // per-market seed from shared pool
+      // ~60% of markets trade to near-certainty before resolving; the rest resolve from mid prices
+      const certain=r()<0.62;
+      const pT = certain
+        ? (out==="yes" ? 0.80+r()*0.18 : 0.03+r()*0.15)
+        : clamp(0.5+(out==="yes"?1:-1)*(0.05+r()*0.18),0.05,0.95);
+      const divLoss = s*(1-2*Math.sqrt(pT*(1-pT)));
+      const fees = baseVol*0.02;
+      lpDelta = fees - divLoss;
+      mIL = divLoss; mFee = fees;
+      covered++;
+    } else if(model==="clob"){
+      // coverage from the same physics as the animation: MM react time vs market lifespan
+      const lifeS=(P.mmLife||15)*(0.3+1.4*r());   // per-market lifespan around the slider value
+      const reactS=(P.mmLat||4)*(0.5+r());        // per-market MM reaction around the slider value
+      quoted = reactS < lifeS*0.42;
+      if(quoted){ covered++; lpDelta = vol*(0.012 - 0.055*r()); }  // thin spread minus adverse selection
+      else { vol=0; lpDelta=0; }
+    } else if(model==="lmsr"){
+      // ---- LMSR: bounded loss b·ln(2) per market; informed flow extracts most of the bound ----
+      const b = Math.min(2000, Math.max(200, baseVol*0.5));   // per-market liquidity proportional to flow
+      const maxLoss = b*Math.log(2);
+      const informedFrac = P.users>=200?0.06:0.10;            // sharper flow in low-volume regimes
+      const recFlow = baseVol*(1-informedFrac), infFlow = baseVol*informedFrac;
+      // recreational pays fees; informed claims share of bounded loss
+      const fees = recFlow*0.02;
+      const adverseLoss = maxLoss * (0.45 + 0.5*r());          // informed extracts 45-95% of bound per market
+      lpDelta = fees - adverseLoss;
+      mIL = adverseLoss; mFee = fees;
+      covered++;
+    } else if(model==="pmamm"){
+      // ---- static PM-AMM: uniform LVR L·φ(Φ⁻¹(p)); held to resolution ----
+      const L = Math.min(8000,Math.max(2000,baseVol*1.4))*(P.poolSeed/100000);
+      // p_pre at resolution — most markets resolve skewed
+      const certain = r()<0.62;
+      const pT = certain
+        ? (out==="yes"?0.78+r()*0.18:0.04+r()*0.18)
+        : clamp(0.5+(out==="yes"?1:-1)*(0.06+r()*0.18),0.05,0.95);
+      // standard normal inverse-CDF & PDF (cheap approximation)
+      function PhiInvLocal(p){const a1=-39.69683,a2=220.9460,a3=-275.9285,a4=138.3577,a5=-30.66479,a6=2.506628;
+        const b1=-54.47609,b2=161.5858,b3=-155.6989,b4=66.80131,b5=-13.28068;
+        const c1=-0.007784,c2=-0.322396,c3=-2.400758,c4=-2.549732,c5=4.374664,c6=2.938163;
+        const d1=0.007784,d2=0.322467,d3=2.445134,d4=3.754408;
+        const pL=0.02425,pH=1-pL; let q,rv;
+        if(p<pL){q=Math.sqrt(-2*Math.log(p)); return (((((c1*q+c2)*q+c3)*q+c4)*q+c5)*q+c6)/((((d1*q+d2)*q+d3)*q+d4)*q+1);}
+        if(p<=pH){q=p-0.5;rv=q*q;return (((((a1*rv+a2)*rv+a3)*rv+a4)*rv+a5)*rv+a6)*q/(((((b1*rv+b2)*rv+b3)*rv+b4)*rv+b5)*rv+1);}
+        q=Math.sqrt(-2*Math.log(1-p)); return -(((((c1*q+c2)*q+c3)*q+c4)*q+c5)*q+c6)/((((d1*q+d2)*q+d3)*q+d4)*q+1);}
+      const z=PhiInvLocal(clamp(pT,0.02,0.98));
+      const pdf=Math.exp(-z*z/2)/Math.sqrt(2*Math.PI);
+      // PM-AMM held-to-resolution loss ≈ L · φ(z)  (vs CPMM which is L · (1 - 2·sqrt(p(1-p))))
+      const divLoss = L*pdf;
+      const fees = baseVol*0.02;
+      lpDelta = fees - divLoss;
+      mIL = divLoss; mFee = fees;
+      covered++;
+    } else if(model==="dpmamm"){
+      // ---- dynamic PM-AMM: same as PM-AMM but L is scaled by √(time-to-expiry fraction) ----
+      const L0 = Math.min(8000,Math.max(2000,baseVol*1.4))*(P.poolSeed/100000);
+      // most action concentrates near expiry; effective L is smaller then
+      const timeFrac = 0.15 + 0.6*r();   // realised time-frac when most volume hits
+      const Leff = L0*Math.sqrt(timeFrac);
+      const certain = r()<0.62;
+      const pT = certain
+        ? (out==="yes"?0.78+r()*0.18:0.04+r()*0.18)
+        : clamp(0.5+(out==="yes"?1:-1)*(0.06+r()*0.18),0.05,0.95);
+      function PhiInvL(p){const a1=-39.69683,a2=220.9460,a3=-275.9285,a4=138.3577,a5=-30.66479,a6=2.506628;
+        const b1=-54.47609,b2=161.5858,b3=-155.6989,b4=66.80131,b5=-13.28068;
+        const c1=-0.007784,c2=-0.322396,c3=-2.400758,c4=-2.549732,c5=4.374664,c6=2.938163;
+        const d1=0.007784,d2=0.322467,d3=2.445134,d4=3.754408;
+        const pL=0.02425,pH=1-pL; let q,rv;
+        if(p<pL){q=Math.sqrt(-2*Math.log(p)); return (((((c1*q+c2)*q+c3)*q+c4)*q+c5)*q+c6)/((((d1*q+d2)*q+d3)*q+d4)*q+1);}
+        if(p<=pH){q=p-0.5;rv=q*q;return (((((a1*rv+a2)*rv+a3)*rv+a4)*rv+a5)*rv+a6)*q/(((((b1*rv+b2)*rv+b3)*rv+b4)*rv+b5)*rv+1);}
+        q=Math.sqrt(-2*Math.log(1-p)); return -(((((c1*q+c2)*q+c3)*q+c4)*q+c5)*q+c6)/((((d1*q+d2)*q+d3)*q+d4)*q+1);}
+      const z=PhiInvL(clamp(pT,0.02,0.98));
+      const pdf=Math.exp(-z*z/2)/Math.sqrt(2*Math.PI);
+      const divLoss = Leff*pdf;     // smaller because L_eff < L_0
+      const fees = baseVol*0.02;
+      lpDelta = fees - divLoss;
+      mIL = divLoss; mFee = fees;
+      covered++;
+    } else if(model==="hybrid"){
+      // ---- 70% of flow → AMM (PM-AMM math), 30% → House (vault math) ----
+      const ammVol = baseVol*0.7;
+      const houseVol = baseVol*0.3;
+      // AMM portion: PM-AMM-style LVR
+      const L = Math.min(4000,Math.max(1000,ammVol*0.8))*(P.poolSeed/100000);
+      const pT = clamp(0.5+(out==="yes"?1:-1)*(0.06+r()*0.2),0.05,0.95);
+      const z = (pT-0.5)*4;
+      const ammDivLoss = L*Math.exp(-z*z/2)/Math.sqrt(2*Math.PI);
+      const ammFees = ammVol*0.025;
+      // House portion: vault arithmetic with 6% margin
+      const v=P.vig||0.06, qYes=clamp(modelP+v/2,0.08,0.92), qNo=clamp(1-modelP+v/2,0.08,0.92);
+      let yes=houseVol*0.5, no=houseVol*0.5;
+      const infVol = houseVol*0.05; if(out==="yes")yes+=infVol; else no+=infVol;
+      const housePnL = out==="yes" ? (no - yes*(1-qYes)/qYes) : (yes - no*(1-qNo)/qNo);
+      lpDelta = (ammFees - ammDivLoss) + housePnL;
+      mIL = ammDivLoss; mFee = ammFees;
+      covered++;
+    } else if(model==="pari"){
+      // no counterparty: players bet each other; house rakes, LP capital idle
+      const rake=vol*0.08; lpDelta=rake*0.5; covered++;
+      // cold-start: a slice of markets attract near-zero flow
+      if(r()<0.15){ vol*=0.06; lpDelta*=0.06; }
+    }
+    pool += lpDelta; cumLP += lpDelta; cumPl -= lpDelta;
+    cumIL += mIL; cumFee += mFee;
+    if(lpDelta>0) lpWins++;
+    if(pool>peak)peak=pool; if(pool<trough)trough=pool;
+    volTotal += vol;
+    rows.push({i,min,e:MKTS[(i*7+P.seed)%MKTS.length].e,n:MKTS[(i*7+P.seed)%MKTS.length].n,
+      vol,out,lpDelta,quoted,pool,il:mIL,fee:mFee});
+    series.push({m:min,pool,lp:cumLP,pl:cumPl,il:cumIL,fee:cumFee});
+  }
+  const ret=(pool-P.poolSeed)/P.poolSeed;
+  const metrics={
+    finalPool:pool, ret, pnl:pool-P.poolSeed,
+    volTotal, volAttempted,
+    coverage:covered/P.moments, coveredN:covered,
+    winRate: lpWins/P.moments,
+    maxDD:(trough-P.poolSeed)/P.poolSeed,
+    vigEarned:isBook?vigEarned:null, advLoss:isBook?advLoss:null,
+    cappedVol:isBook?cappedVol:null, payoutsPaid:isBook?payoutsPaid:null
+  };
+  return {rows,series,metrics};
+}
+
+// ---- chart renderers (inline SVG) ----
+function lineChart(id,series,keys,opts={}){
+  const svg=document.getElementById(id); if(!svg)return; clear(svg);
+  const W=640,H=190,padL=46,padR=14,padT=12,padB=26;
+  const xs=series.map(s=>s.m), xmin=0, xmax=Math.max(...xs);
+  let allv=[]; keys.forEach(k=>series.forEach(s=>allv.push(s[k.key])));
+  let vmin=Math.min(...allv), vmax=Math.max(...allv);
+  if(opts.seedLine!=null){vmin=Math.min(vmin,opts.seedLine);vmax=Math.max(vmax,opts.seedLine);}
+  const pad=(vmax-vmin)*0.12||1; vmin-=pad; vmax+=pad;
+  const X=m=>padL+(m-xmin)/(xmax-xmin||1)*(W-padL-padR);
+  const Y=v=>padT+(1-(v-vmin)/(vmax-vmin||1))*(H-padT-padB);
+  svg.setAttribute("viewBox",`0 0 ${W} ${H}`);
+  // gridlines + y labels
+  for(let g=0;g<=3;g++){const v=vmin+(vmax-vmin)*g/3, y=Y(v);
+    el("line",{x1:padL,y1:y,x2:W-padR,y2:y,stroke:"#F1F0EC","stroke-width":1},svg);
+    txt(svg,padL-6,y+3,opts.fmt?opts.fmt(v):Math.round(v),{size:9,fill:C.ink3,anchor:"end",cls:"lbl-mono"});
+  }
+  // seed reference line
+  if(opts.seedLine!=null){const y=Y(opts.seedLine);
+    el("line",{x1:padL,y1:y,x2:W-padR,y2:y,stroke:C.ink3,"stroke-dasharray":"3 3","stroke-width":1},svg);
+    txt(svg,W-padR,y-4,opts.seedLabel||"seed",{size:8.5,fill:C.ink3,anchor:"end",cls:"lbl-mono"});}
+  // x labels
+  [0,0.33,0.66,1].forEach(f=>{const m=xmin+(xmax-xmin)*f;txt(svg,X(m),H-8,Math.round(m)+"'",{size:9,fill:C.ink3,cls:"lbl-mono"});});
+  // lines
+  keys.forEach(k=>{
+    let d="";series.forEach((s,i)=>{d+=(i?"L":"M")+X(s.m).toFixed(1)+" "+Y(s[k.key]).toFixed(1)+" ";});
+    el("path",{d,fill:"none",stroke:k.color,"stroke-width":2,"stroke-linejoin":"round"},svg);
+  });
+}
+function barChart(id,rows){
+  const svg=document.getElementById(id); if(!svg)return; clear(svg);
+  const W=640,H=180,padL=40,padR=10,padT=12,padB=24;
+  const vals=rows.map(r=>r.lpDelta); let vmax=Math.max(1,...vals.map(Math.abs));
+  const X=i=>padL+(i+0.5)/rows.length*(W-padL-padR);
+  const bw=Math.max(3,(W-padL-padR)/rows.length*0.7);
+  const Y0=padT+(H-padT-padB)/2;
+  svg.setAttribute("viewBox",`0 0 ${W} ${H}`);
+  el("line",{x1:padL,y1:Y0,x2:W-padR,y2:Y0,stroke:C.line2,"stroke-width":1},svg);
+  txt(svg,padL-6,padT+8,fmtK(vmax),{size:9,fill:C.ink3,anchor:"end",cls:"lbl-mono"});
+  txt(svg,padL-6,H-padB+2,fmtK(-vmax),{size:9,fill:C.ink3,anchor:"end",cls:"lbl-mono"});
+  rows.forEach((r,i)=>{
+    const h=Math.abs(r.lpDelta)/vmax*((H-padT-padB)/2);
+    let col=r.quoted===false?C.ink3:(r.lpDelta>=0?C.green:C.red);
+    if(r.quoted===false){ // no-quote marker
+      el("circle",{cx:X(i),cy:Y0,r:2.5,fill:C.ink3},svg);
+    }else{
+      el("rect",{x:X(i)-bw/2,y:r.lpDelta>=0?Y0-h:Y0,width:bw,height:h,rx:1.5,fill:col},svg);
+    }
+  });
+  [1,5,9,13,17,21,25].forEach(n=>{if(n<=rows.length)txt(svg,X(n-1),H-8,n,{size:8.5,fill:C.ink3,cls:"lbl-mono"});});
+}
+function renderResults(prefix,m,P){
+  const g=document.getElementById(prefix+"-results"); if(!g)return;
+  const rcls=v=>v>0?"pos":(v<0?"neg":"");
+  let html=`
+    <div><div class="rk">Final pool</div><div class="rv">${fmtK(m.finalPool)}</div><div class="rn">from ${fmtK(P.poolSeed)}</div></div>
+    <div><div class="rk">LP return</div><div class="rv ${rcls(m.ret)}">${(m.ret>=0?"+":"")}${(m.ret*100).toFixed(1)}%</div><div class="rn">${(m.pnl>=0?"+":"")}${fmtK(m.pnl)} P&L</div></div>
+    <div><div class="rk">Total volume</div><div class="rv">${fmtK(m.volTotal)}</div><div class="rn">of ${fmtK(m.volAttempted)} attempted</div></div>
+    <div><div class="rk">Market coverage</div><div class="rv">${Math.round(m.coverage*100)}%</div><div class="rn">${m.coveredN} / ${P.moments} markets</div></div>
+    <div><div class="rk">LP win rate</div><div class="rv">${Math.round(m.winRate*100)}%</div><div class="rn">markets LP profited</div></div>
+    <div><div class="rk">Max drawdown</div><div class="rv ${m.maxDD<0?'neg':''}">${(m.maxDD*100).toFixed(1)}%</div><div class="rn">lowest cumulative</div></div>`;
+  if(m.vigEarned!=null){
+    html+=`
+    <div><div class="rk">Vig earned</div><div class="rv pos">+${fmtK(m.vigEarned)}</div><div class="rn">edge on recreational flow</div></div>
+    <div><div class="rk">Adverse-selection loss</div><div class="rv ${m.advLoss>0?'neg':''}">−${fmtK(m.advLoss)}</div><div class="rn">paid to informed flow</div></div>
+    <div><div class="rk">Volume rejected</div><div class="rv">${fmtK(m.cappedVol)}</div><div class="rn">liability caps held</div></div>`;
+  }
+  g.innerHTML=html;
+}
+function renderLog(prefix,rows){
+  const tb=document.getElementById(prefix+"-logbody"); if(!tb)return;
+  tb.innerHTML=rows.map(r=>{
+    const lp=r.quoted===false?`<span class="lp-zero">no quote</span>`:
+      `<span class="${r.lpDelta>=0?'lp-pos':'lp-neg'}">${r.lpDelta>=0?"+":""}${fmtK(r.lpDelta)}</span>`;
+    const out=r.quoted===false?`<span class="lp-zero">—</span>`:`<span class="${r.out==='yes'?'out-yes':'out-no'}">${r.out.toUpperCase()}</span>`;
+    return `<tr><td>${r.i}</td><td>${r.min}'</td><td class="mkt">${r.e} ${r.n}</td><td>${fmtK(r.vol)}</td><td>${out}</td><td>${lp}</td><td>${fmtK(r.pool)}</td></tr>`;
+  }).join("");
+}
+// per-model strengths / weaknesses / used-by
+const MODELMETA={
+  vault:{str:["No per-market capital needed — one pool funds all bets","Mutualized risk: a bad market is offset by others","Prices from a real model + vig — no cold-start","Exposure-skew + liability caps protect the LP"],
+    wk:["LPs absorb match-level tail risk: a bad game moves the vault","Needs a high-quality, low-latency probability feed","Vulnerable to informed flow if close/update is slow","More centralized than a pure AMM"],
+    use:["Azuro (Cayman) — mutualized vault","Thales / Overtime (Switzerland)","Buffer Finance"]},
+  cpmm:{str:["Simple, permissionless mechanics","Always-quoted prices (no MM cold-start)","Battle-tested AMM tooling"],
+    wk:["Impermanent loss: LP loses ~one side on every skewed resolution","Compounds across ~25 micro-moments per match","Toxic-flow death-spiral: sharp money beats a slow oracle","Solves price discovery the product already has"],
+    use:["Polymarket (early Polygon FPMM era)","Omen / Gnosis FPMM","Assorted long-duration prediction AMMs"]},
+  pari:{str:["Zero directional risk for the house","Regulator-recognized mechanism (CFTC, FCA, MGA)","No reserve capital required"],
+    wk:["LP pool sits idle — no edge, no liquidity provided","Cold-start failure: low-volume markets have $0 pools","Pumpcade empirical: 9/10 live markets at a $0 pool","Payouts unknown until the pool closes"],
+    use:["PancakeSwap Prediction (5-min crypto)","Pumpcade (Solana)","UK Tote / racing pools"]},
+  clob:{str:["True price discovery from MM competition","Tight spreads when MMs are active and capitalized","Regulator-friendly for the US-regulated layer"],
+    wk:["Cold-start dies without committed MMs at launch","Adverse selection: smart money picks off stale quotes","~30% of sub-minute markets go unquoted","Each MM needs $50k–$500k of un-mutualized capital"],
+    use:["Sporttrade (US)","SX Bet (Isle of Man)","Betfair Exchange (UK)"]},
+  lmsr:{str:["<b>Bounded max loss</b> b·ln(2) — predictable subsidy budget","Always-on quote, no MM needed","Smoothly differentiable, mathematically elegant","Easy to reason about for protocol designers"],
+    wk:["Bounded ≠ small: most of the bound is paid out to informed flow","No live-odds feed: curve is the only price signal","Subsidy-funded (not fee-driven) — LPs don't earn yield","Not viable for real-money sub-minute markets"],
+    use:["Manifold Markets (play money)","Augur v1","Polymarket pre-CPMM era","Gnosis Conditional Tokens (LMSR mode)"]},
+  pmamm:{str:["<b>Uniform LVR across prices</b> — no extreme-price bleed","Liquidity concentrated where it matters (Gaussian shape)","Designed specifically for prediction markets","Mathematically principled (Paradigm 2024 research)"],
+    wk:["Still passive against informed flow inside short markets","No native odds-feed integration","Loss still grows as expiration approaches (static version)","Production deployments still minimal"],
+    use:["Paradigm reference implementation","Several research deployments on Base","Limitless considering","Polymarket exploring"]},
+  dpmamm:{str:["<b>Bounded total LVR</b> via time-decaying L(t) = L₀·√(T−t)","All static PM-AMM advantages plus volatility protection","Cleanest AMM economics for any prediction market","Production-grade for hours-to-weeks markets"],
+    wk:["Sophistication adds implementation risk vs vault","Still no live-odds awareness","Time-decay assumes constant volatility (not true near big events)","Smaller liquidity near expiry can hurt UX"],
+    use:["Paradigm reference implementation","Several research deployments on Base","Most-discussed AMM design in DeFi prediction-market circles"]},
+  hybrid:{str:["AMM tier provides cold-start liquidity for free","House book disciplines big-money flow","Vault funds both — no per-tier capital fragmentation","Captures retail UX + sportsbook margins"],
+    wk:["Two systems to build, monitor, and reconcile","Smart-router becomes a single point of failure","Adds little vs a pure vault with model-fed odds","Best gains are in long-duration markets, not Maybe's product"],
+    use:["Polymarket (CPMM AMM + operator-subsidized liquidity)","Limitless (Hybrid AMM+CLOB on Base)","Stake-style sportsbooks (book + AMM-quoted exotics)"]}
+};
+function renderSWU(prefix,model){
+  const meta=MODELMETA[model]; const host=document.getElementById(prefix+"-swu"); if(!host)return;
+  host.innerHTML=`
+    <div class="swu-card str"><h5>Strengths</h5><ul>${meta.str.map(s=>`<li>${s}</li>`).join("")}</ul></div>
+    <div class="swu-card wk"><h5>Weaknesses</h5><ul>${meta.wk.map(s=>`<li>${s}</li>`).join("")}</ul></div>
+    <div class="swu-card use"><h5>Used in production by</h5><ul>${meta.use.map(s=>`<li>${s}</li>`).join("")}</ul></div>`;
+}
+
+// ---- Monte Carlo across many matches ----
+function pctile(a,q){const s=[...a].sort((x,y)=>x-y);return s[Math.min(s.length-1,Math.max(0,Math.floor(q*s.length)))];}
+function histChart(id,rets){
+  const svg=document.getElementById(id); if(!svg)return; clear(svg);
+  const W=640,H=170,padL=14,padR=14,padT=10,padB=24;
+  svg.setAttribute("viewBox",`0 0 ${W} ${H}`);
+  let lo=Math.min(...rets),hi=Math.max(...rets);
+  const span=(hi-lo)||0.01; lo-=span*0.05; hi+=span*0.05;
+  const BINS=22, counts=new Array(BINS).fill(0);
+  rets.forEach(v=>{counts[Math.min(BINS-1,Math.max(0,Math.floor((v-lo)/(hi-lo)*BINS)))]++;});
+  const cmax=Math.max(...counts);
+  const X=i=>padL+i/BINS*(W-padL-padR), bw=(W-padL-padR)/BINS-2;
+  counts.forEach((c,i)=>{
+    if(!c)return;
+    const binMid=lo+(i+0.5)/BINS*(hi-lo);
+    const hgt=c/cmax*(H-padT-padB);
+    el("rect",{x:X(i)+1,y:H-padB-hgt,width:bw,height:hgt,rx:2,fill:binMid>=0?C.green:C.red,opacity:.85},svg);
+  });
+  // zero line
+  if(lo<0&&hi>0){const xz=padL+(0-lo)/(hi-lo)*(W-padL-padR);
+    el("line",{x1:xz,y1:padT,x2:xz,y2:H-padB,stroke:C.ink,"stroke-dasharray":"3 3","stroke-width":1},svg);
+    txt(svg,xz,H-8,"0%",{size:9,fill:C.ink2,cls:"lbl-mono"});}
+  txt(svg,padL,H-8,(lo*100).toFixed(0)+"%",{size:9,fill:C.ink3,anchor:"start",cls:"lbl-mono"});
+  txt(svg,W-padR,H-8,(hi*100).toFixed(0)+"%",{size:9,fill:C.ink3,anchor:"end",cls:"lbl-mono"});
+}
+function renderMCStats(prefix,rets){
+  const g=document.getElementById(prefix+"-mcstats"); if(!g)return;
+  const mean=rets.reduce((a,b)=>a+b,0)/rets.length;
+  const p5=pctile(rets,0.05), p50=pctile(rets,0.5), p95=pctile(rets,0.95);
+  const winPct=rets.filter(v=>v>0).length/rets.length;
+  const f=v=>(v>=0?"+":"")+(v*100).toFixed(1)+"%";
+  const cls=v=>v>=0?"pos":"neg";
+  g.innerHTML=`<span>mean <b class="${cls(mean)}">${f(mean)}</b></span><span>median <b class="${cls(p50)}">${f(p50)}</b></span><span>P5–P95 <b>${f(p5)} … ${f(p95)}</b></span><span>matches profitable <b class="${cls(winPct-0.5)}">${Math.round(winPct*100)}%</b></span>`;
+}
+// ---- risk vs odds: edge is flat, liability is hyperbolic ----
+function drawRiskOdds(id,vig){
+  const svg=document.getElementById(id); if(!svg)return; clear(svg);
+  const W=640,H=190,padL=56,padR=14,padT=14,padB=26;
+  svg.setAttribute("viewBox",`0 0 ${W} ${H}`);
+  const q0=0.08,q1=0.92;
+  const X=q=>padL+(q-q0)/(q1-q0)*(W-padL-padR);
+  const ymin=Math.log10(8), ymax=Math.log10(13000);
+  const Y=v=>padT+(1-(Math.log10(Math.max(8,v))-ymin)/(ymax-ymin))*(H-padT-padB);
+  [10,100,1000,10000].forEach(v=>{const y=Y(v);
+    el("line",{x1:padL,y1:y,x2:W-padR,y2:y,stroke:"#F1F0EC","stroke-width":1},svg);
+    txt(svg,padL-6,y+3,fmtK(v),{size:9,fill:C.ink3,anchor:"end",cls:"lbl-mono"});});
+  [0.1,0.3,0.5,0.7,0.9].forEach(q=>txt(svg,X(q),H-8,q.toFixed(1),{size:9,fill:C.ink3,cls:"lbl-mono"}));
+  txt(svg,W/2+20,H-8,"",{size:9});
+  txt(svg,padL-6,padT-2,"per $1k",{size:8.5,fill:C.ink3,anchor:"end",cls:"lbl-mono"});
+  txt(svg,W-padR,H-8,"YES quote",{size:9,fill:C.ink3,anchor:"end",cls:"lbl-mono"});
+  // flat vig edge line
+  const edge=1000*vig/2, ye=Y(edge);
+  el("line",{x1:padL,y1:ye,x2:W-padR,y2:ye,stroke:C.green,"stroke-width":2},svg);
+  // hyperbolic liability curve (1-q)/q per $1k
+  let d="";
+  for(let q=q0;q<=q1+1e-9;q+=0.02){const v=1000*(1-q)/q; d+=(d?"L":"M")+X(q).toFixed(1)+" "+Y(v).toFixed(1)+" ";}
+  el("path",{d,fill:"none",stroke:C.red,"stroke-width":2,"stroke-linejoin":"round"},svg);
+  txt(svg,X(0.13),Y(1000*(1-0.13)/0.13)-8,"longshots: 1 stake = "+fmtK(1000*(1-0.1)/0.1)+" liability",{size:9,fill:C.redInk,anchor:"start",cls:"lbl-mono"});
+}
+// ---- per-model methodology notes ----
+const METHOD={
+  vault:`<b>Engine:</b> real bookmaking arithmetic. Quotes = modelProb ± vig/2 (overround = vig); recreational flow splits around public perception with exposure-pull toward balance; informed flow lands on the true outcome inside the latency window (cut exponentially by the close buffer); liability capped at 3% of pool per market — excess stake rejected. Settlement keeps the losing side, pays winners at quoted prices. Calibrated to reproduce the prior research's verdicts, not a reimplementation of the original engine. Deterministic given the seed.`,
+  cpmm:`<b>Engine:</b> closed-form held-to-resolution impermanent loss V<sub>LP</sub>(p) = seed · 2√(p(1−p)); ~60% of markets trade to near-certainty before resolving, the rest resolve from mid prices; fees 2% of volume; per-market seed drawn from the shared pool. Calibrated to the prior research (15–20% pool loss per match); deterministic given the seed.`,
+  pari:`<b>Engine:</b> players bet each other — the house takes an 8% rake (LP share 50%) and carries no position; 15% of markets cold-start at near-zero volume (Pumpcade-pattern). LP capital is never at risk and never earns beyond rake. Deterministic given the seed.`,
+  clob:`<b>Engine:</b> a market is quoted only if the MM's per-market react time beats ~42% of its lifespan — both driven by the React time / Lifespan sliders in the animation above, so the animation and the simulation share one physics. Quoted markets earn a 1.2% spread minus adverse selection. Deterministic given the seed.`,
+  lmsr:`<b>Engine:</b> per-market liquidity b scales with flow; LP collects 2% recreational fees but pays out adverse selection that takes 45–95% of the bounded loss b·ln(2). Bounded but persistent — the AMM has no price signal of its own. Deterministic given the seed.`,
+  pmamm:`<b>Engine:</b> per-market liquidity L drawn from shared pool; held-to-resolution loss = L · φ(Φ⁻¹(p<sub>resolve</sub>)). Uniform LVR across prices means it dodges the catastrophic extreme-price bleed of CPMM, but flow still resolves skewed and Paradigm's curve doesn't know about live odds. Deterministic given the seed.`,
+  dpmamm:`<b>Engine:</b> same Gaussian invariant as PM-AMM, but L scales by √(time-to-expiry fraction). Per-market effective L is 15–75% of L₀ because most action lands near expiry, materially cutting LVR. Cleanest AMM economics in production today — still no live-odds awareness. Deterministic given the seed.`,
+  hybrid:`<b>Engine:</b> 70% of flow routed to an AMM tier (PM-AMM-style LVR), 30% to a house book (vault arithmetic at 6% margin). LP P&L = AMM fees − AMM impermanent loss + house edge. The mix lets the AMM cold-start while the book disciplines size. Deterministic given the seed.`
+};
+function renderMethod(pfx,model){const e=document.getElementById(pfx+"-method"); if(e)e.innerHTML=METHOD[model];}
+
+// read params from a tab's sim controls
+function readSimParams(prefix){
+  const g=id=>document.getElementById(prefix+id);
+  return {
+    poolSeed:+g("-seed2").value,
+    moments:+g("-moments").value,
+    duration:+g("-dur").value,
+    users:+g("-users").value,
+    vig:(+g("-vig2").value)/100,
+    inf: g("-inf") ? (+g("-inf").value)/100 : 0,
+    buf: g("-buf") ? +g("-buf").value : 0,
+    mmLat: g("-lat") ? +g("-lat").value : 0,
+    mmLife: g("-life") ? +g("-life").value : 0,
+    seed:+g("-seedn").value
+  };
+}
+const SIMCOLOR={vault:C.green,cpmm:C.red,clob:C.amber,pari:C.purple,lmsr:C.amber,pmamm:C.blue,dpmamm:C.purple,hybrid:C.ink};
+function runSim(prefix,model){
+  const P=readSimParams(prefix);
+  const {rows,series,metrics}=simulate(model,P);
+  renderResults(prefix,metrics,P);
+  lineChart(prefix+"-poolchart",series,[{key:"pool",color:SIMCOLOR[model]}],{seedLine:P.poolSeed,fmt:fmtK});
+  lineChart(prefix+"-pnlchart",series,[{key:"lp",color:C.green},{key:"pl",color:C.blue}],{seedLine:0,seedLabel:"break-even",fmt:fmtK});
+  // cumulative impermanent loss chart (AMM models only)
+  if(document.getElementById(prefix+"-ilchart")){
+    const ilSeries=series.map(s=>({m:s.m, ilNeg:-(s.il||0), fee:(s.fee||0)}));
+    lineChart(prefix+"-ilchart",ilSeries,[{key:"ilNeg",color:C.red},{key:"fee",color:C.amber}],{seedLine:0,seedLabel:"zero",fmt:fmtK});
+  }
+  barChart(prefix+"-barchart",rows);
+  renderLog(prefix,rows);
+  // Monte Carlo: same params, 200 seeds
+  const mc=[]; for(let s=1;s<=200;s++){ mc.push(simulate(model,{...P,seed:s}).metrics.ret); }
+  histChart(prefix+"-mcchart",mc);
+  renderMCStats(prefix,mc);
+  if(model==="vault") drawRiskOdds(prefix+"-riskodds",P.vig);
+}
+
+// ============================================================ WIRING
+function bindRange(id,fmtFn){const r=document.getElementById(id),o=document.getElementById(id+"-v");
+  if(!r||!o)return;
+  const upd=()=>o.textContent=fmtFn(+r.value);r.addEventListener("input",upd);upd();}
+bindRange("v-stake",v=>fmt(v)); bindRange("v-prob",v=>(v/100).toFixed(2)); bindRange("v-vig",v=>v+"%");
+bindRange("c-seed",v=>fmt(v)); bindRange("c-buy",v=>fmt(v));
+bindRange("pr-n",v=>v); bindRange("pr-stake",v=>fmt(v)); bindRange("pr-rake",v=>v+"%");
+bindRange("cl-lat",v=>v+"s"); bindRange("cl-life",v=>v+"s"); bindRange("cl-stake",v=>fmt(v));
+
+function bindToggle(groupId,key){
+  document.querySelectorAll("#"+groupId+" button").forEach(b=>{
+    b.addEventListener("click",()=>{
+      state[key].out=b.dataset.o;
+      document.querySelectorAll("#"+groupId+" button").forEach(x=>{x.classList.remove("on-yes","on-no");});
+      b.classList.add(b.dataset.o==="yes"?"on-yes":"on-no");
+    });
+  });
+}
+bindToggle("v-out","vault"); bindToggle("c-out","cpmm"); bindToggle("pr-out","pari");
+
+renderSteps("v-steps",[
+  "Micro-moment opens on the user's screen.",
+  "<b>Odds engine</b> quotes from the probability model + vig.",
+  "User stakes on YES — the money enters the <b>vault</b>.",
+  "Vault <b>books the opposite side</b>; odds skew vs its exposure.",
+  "Moment resolves → vault pays the winner or keeps the loser's stake."
+]);
+renderSteps("c-steps",[
+  "Moment opens; a fresh YES/NO pool seeds <b>50/50</b> (x·y=k).",
+  "User deposits USDC → protocol <b>mints a complete set</b>: equal YES + NO. Both reserves rise; price still 50/50.",
+  "User wants only YES, so the minted <b>NO is swapped back in</b> → NO reserve rises again, YES falls, <b>price moves</b>.",
+  "Moment resolves → winning shares = $1, losing = $0. <b>LP holds the losing side.</b>",
+  "Settlement: winner paid from collateral; the LP eats the gap."
+]);
+renderSteps("pr-steps",[
+  "Moment opens; no LP counterparty — players bet each other.",
+  "Each player's stake drops into <b>one shared pot</b>, in time order.",
+  "House skims <b>rake</b>; the rest is payable to winners.",
+  "Resolves → winners <b>split the pot, time-weighted</b> (fastest gets most)."
+]);
+renderSteps("cl-steps",[
+  "Penalty market opens; the order book in the middle is <b>empty</b>.",
+  "MM prices the event and <b>posts resting bids at several price bands</b> (right → book).",
+  "User buys YES → order <b>fills against the best (top) bid</b>; MM takes the other side.",
+  "Coverage check: if MM react time eats the short market, <b>the book never fills</b>."
+]);
+
+document.getElementById("v-play").onclick=runVault; document.getElementById("v-replay").onclick=runVault;
+document.getElementById("c-play").onclick=runCpmm; document.getElementById("c-replay").onclick=runCpmm;
+document.getElementById("pr-play").onclick=runPari; document.getElementById("pr-replay").onclick=runPari;
+document.getElementById("cl-play").onclick=runClob; document.getElementById("cl-replay").onclick=runClob;
+/* ================================================================
+   LMSR — Hanson's logarithmic AMM (bounded loss b·ln(2))
+================================================================ */
+function lmsrParams(){
+  return {
+    b:+document.getElementById("lm-b").value,
+    buy:+document.getElementById("lm-buy").value,
+    out:state.lmsr.out
+  };
+}
+
+/* ----------------------------------------------------------------
+   SHARED curve-trade animation engine for LMSR / PM-AMM / Dynamic
+   Layout (560×440):
+     • big invariant-curve chart, centre  (x 60..500, y 60..300)
+     • user actor bottom-left
+     • price marker walks up the curve as the trade fills
+     • shaded slippage band + settlement loss/gain area
+   priceFn(t01) → marginal YES price after fraction t01 of the trade
+---------------------------------------------------------------- */
+function curveChartGeom(){
+  return { x0:90, y0:290, x1:500, y1:66, pw:410, ph:224 };
+}
+function drawCurvePanel(svg, opts){
+  // opts: {color, fillBg, title, eq, priceFn (q01->p), markerLabel}
+  clear(svg);
+  const g=curveChartGeom();
+  // panel bg
+  el("rect",{x:60,y:46,width:470,height:288,rx:12,fill:opts.fillBg,stroke:opts.color,"stroke-width":1.5,opacity:0.5},svg);
+  txt(svg,75,66,opts.title,{size:11,cls:"lbl-mono",fill:opts.color,weight:600,anchor:"start"});
+  txt(svg,520,66,opts.eq,{size:11,cls:"lbl-mono",fill:opts.color,weight:600,anchor:"end"});
+  // axes
+  el("line",{x1:g.x0,y1:g.y0,x2:g.x1,y2:g.y0,stroke:C.line2,"stroke-width":1.5},svg);
+  el("line",{x1:g.x0,y1:g.y0,x2:g.x0,y2:g.y1,stroke:C.line2,"stroke-width":1.5},svg);
+  // y gridlines 0,.25,.5,.75,1
+  [0,.25,.5,.75,1].forEach(pp=>{
+    const y=g.y0-(pp)*g.ph;
+    el("line",{x1:g.x0,y1:y,x2:g.x1,y2:y,stroke:C.line,"stroke-width":1},svg);
+    txt(svg,g.x0-8,y+4,pp.toFixed(2),{size:9,cls:"lbl-mono",fill:C.ink3,anchor:"end"});
+  });
+  txt(svg,(g.x0+g.x1)/2,g.y0+28,"net YES bought  →",{size:9.5,cls:"lbl-mono",fill:C.ink3});
+  const pl=txt(svg,g.x0-46,(g.y0+g.y1)/2,"price",{size:9.5,cls:"lbl-mono",fill:C.ink3,anchor:"middle"});
+  pl.setAttribute("transform",`rotate(-90 ${g.x0-46} ${(g.y0+g.y1)/2})`);
+  // curve: price as function of trade fraction 0..1 mapped across x
+  let d="";
+  for(let i=0;i<=80;i++){
+    const f=i/80, p=Math.min(0.999,Math.max(0.001,opts.priceFn(f)));
+    const x=g.x0+f*g.pw, y=g.y0-p*g.ph;
+    d+=(i===0?"M":"L")+x.toFixed(1)+","+y.toFixed(1)+" ";
+  }
+  el("path",{d,stroke:opts.color,"stroke-width":2.5,fill:"none"},svg);
+  // user actor (bottom-left, outside chart)
+  drawActor(svg,40,395,30,"#fff",C.green,"","",{sw:2.5});
+  txt(svg,40,400,"USER",{size:9,cls:"lbl-mono",fill:C.greenInk,weight:600});
+  txt(svg,40,430,"backs YES",{size:9,cls:"lbl-mono",fill:C.ink3});
+  // moment label bottom-centre
+  el("rect",{x:175,y:378,width:170,height:34,rx:17,fill:"#fff",stroke:C.line2,"stroke-width":1.5},svg);
+  const mom=txt(svg,260,400,'"Penalty scored?"',{size:12,weight:600});
+  return {g, mom};
+}
+// animate the price marker walking up the curve as the trade fills
+async function animateCurveFill(svg, geom, priceFn, color, opts={}){
+  const g=geom;
+  // shaded area under curve from 0..1 (the cost / slippage band)
+  let area="M"+g.x0+","+g.y0+" ";
+  const marker=el("circle",{cx:g.x0,cy:g.y0-priceFn(0)*g.ph,r:7,fill:"#fff",stroke:color,"stroke-width":3},svg);
+  const plabel=txt(svg,g.x0,g.y0-priceFn(0)*g.ph-14,"p="+priceFn(0).toFixed(3),{size:11,cls:"lbl-mono",fill:color,weight:600,anchor:"start"});
+  const steps=46;
+  // build a growing shaded fill as the marker advances
+  const fillPath=el("path",{d:"",fill:color,opacity:0.10,stroke:"none"},svg);
+  for(let i=1;i<=steps;i++){
+    const f=i/steps;
+    const p=Math.min(0.999,Math.max(0.001,priceFn(f)));
+    const x=g.x0+f*g.pw, y=g.y0-p*g.ph;
+    marker.setAttribute("cx",x); marker.setAttribute("cy",y);
+    plabel.setAttribute("x",Math.min(x,g.x1-50)); plabel.setAttribute("y",y-14);
+    plabel.textContent="p="+p.toFixed(3);
+    // grow shaded fill
+    let fd="M"+g.x0+","+g.y0+" ";
+    for(let j=0;j<=i;j++){const fj=j/steps; const pj=Math.min(0.999,Math.max(0.001,priceFn(fj))); fd+="L"+(g.x0+fj*g.pw).toFixed(1)+","+(g.y0-pj*g.ph).toFixed(1)+" ";}
+    fd+="L"+x.toFixed(1)+","+g.y0+" Z";
+    fillPath.setAttribute("d",fd);
+    await sleep(28);
+  }
+  return {marker, plabel, fillPath};
+}
+
+function drawLmsrBase(svg,p){
+  const pre=drawCurvePanel(svg,{
+    color:C.amber, fillBg:"#FFFBEB",
+    title:"LMSR COST CURVE", eq:"C(q)=b·ln Σe^(qᵢ/b)",
+    priceFn:(f)=>{ const cost=f*p.buy; const eqb=Math.exp(cost/p.b)*2-1; return eqb/(eqb+1); }
+  });
+  // bounded-loss annotation
+  txt(svg,75,352,`b = ${fmt(p.b)}  ·  max LP loss = b·ln2 = ${fmt(p.b*Math.log(2))}`,{size:9.5,cls:"lbl-mono",fill:C.amberInk,anchor:"start"});
+}
+async function runLmsr(){
+  if(running.lmsr)return; running.lmsr=true;
+  const svg=document.getElementById("svg-lmsr"); const p=lmsrParams();
+  document.getElementById("lm-play").disabled=true;
+  drawLmsrBase(svg,p);
+  renderLedger("lm-ledger",[{k:"Resolving…",v:0,disp:"—"},{k:"",v:0,disp:""}]);
+  const g=curveChartGeom();
+  const priceFn=(f)=>{ const cost=f*p.buy; const eqb=Math.exp(cost/p.b)*2-1; return eqb/(eqb+1); };
+  const shares=p.b*Math.log(Math.exp(p.buy/p.b)*2-1);
+  const pPost=priceFn(1), avgPrice=p.buy/shares;
+
+  // step 1: moment opens
+  lightStep("lm-steps",0); await sleep(900);
+
+  // step 2: user pays $ into the curve — chip flies from user to curve origin
+  lightStep("lm-steps",1);
+  await flyChip(svg,{x:40,y:395},{x:g.x0,y:g.y0},fmt(p.buy),C.green,{vanish:true,r:20,fs:11});
+
+  // step 3: price walks UP the curve as the trade fills
+  lightStep("lm-steps",2);
+  const {marker}=await animateCurveFill(svg,g,priceFn,C.amber);
+  txt(svg,g.x0+g.pw*0.5,g.y0-pPost*g.ph-30,`bought ${Math.round(shares)} YES @ avg ${avgPrice.toFixed(3)}`,{size:10,cls:"lbl-mono",fill:C.amberInk});
+  await sleep(900);
+
+  // step 4: resolution — price snaps to 0 or 1
+  lightStep("lm-steps",3);
+  const settleY = p.out==="yes" ? g.y0-1*g.ph : g.y0;
+  el("line",{x1:g.x0,y1:settleY,x2:g.x1,y2:settleY,stroke:p.out==="yes"?C.greenInk:C.blueInk,"stroke-width":2,"stroke-dasharray":"5 4"},svg);
+  txt(svg,g.x1,settleY+(p.out==="yes"?-8:16),p.out==="yes"?"YES resolves $1":"YES resolves $0",{size:10,cls:"lbl-mono",fill:p.out==="yes"?C.greenInk:C.blueInk,weight:600,anchor:"end"});
+  // animate marker snapping to settlement price
+  for(let i=0;i<=12;i++){const yy=marker.getAttribute("cy")*1+((settleY)-(marker.getAttribute("cy")*1))*(i/12); marker.setAttribute("cy",yy); await sleep(40);}
+  await sleep(700);
+
+  // step 5: settlement P&L
+  lightStep("lm-steps",4);
+  let userPnL,lpPnL;
+  if(p.out==="yes"){ userPnL=shares-p.buy; lpPnL=-userPnL;
+    await flyChip(svg,{x:g.x0+g.pw,y:settleY},{x:40,y:395},fmt(shares),C.green,{vanish:true});
+  } else { userPnL=-p.buy; lpPnL=p.buy; }
+  const maxLoss=p.b*Math.log(2);
+  renderLedger("lm-ledger",[
+    {k:"LP P&L",v:Math.round(lpPnL),n:p.out==="yes"?`paid ${Math.round(shares)} winning shares @ $1; loss is capped at b·ln2 = ${fmt(maxLoss)}`:`kept the ${fmt(p.buy)} stake; the shares it sold are now worthless`},
+    {k:"User P&L",v:Math.round(userPnL),n:`paid ${fmt(p.buy)} for ${Math.round(shares)} YES @ avg ${avgPrice.toFixed(3)} → ${p.out==="yes"?"worth $1 each":"worth $0"}`}
+  ]);
+  running.lmsr=false; document.getElementById("lm-play").disabled=false;
+}
+
+/* ================================================================
+   PM-AMM — Paradigm's Gaussian AMM
+================================================================ */
+// Standard normal pdf and cdf approximations
+function phi(z){return Math.exp(-z*z/2)/Math.sqrt(2*Math.PI);}
+function Phi(z){
+  // Abramowitz approximation
+  const t=1/(1+0.2316419*Math.abs(z));
+  const d=0.3989423*Math.exp(-z*z/2);
+  let p=d*t*(0.3193815+t*(-0.3565638+t*(1.781478+t*(-1.821256+t*1.330274))));
+  return z>0?1-p:p;
+}
+function Phi_inv(p){
+  // Beasley-Springer-Moro inverse normal
+  const a=[-3.969683028665376e+01,2.209460984245205e+02,-2.759285104469687e+02,1.383577518672690e+02,-3.066479806614716e+01,2.506628277459239e+00];
+  const b=[-5.447609879822406e+01,1.615858368580409e+02,-1.556989798598866e+02,6.680131188771972e+01,-1.328068155288572e+01];
+  const c=[-7.784894002430293e-03,-3.223964580411365e-01,-2.400758277161838e+00,-2.549732539343734e+00,4.374664141464968e+00,2.938163982698783e+00];
+  const d=[7.784695709041462e-03,3.224671290700398e-01,2.445134137142996e+00,3.754408661907416e+00];
+  const pLow=0.02425, pHigh=1-pLow;
+  let q, r;
+  if(p<pLow){q=Math.sqrt(-2*Math.log(p)); return (((((c[0]*q+c[1])*q+c[2])*q+c[3])*q+c[4])*q+c[5]) / ((((d[0]*q+d[1])*q+d[2])*q+d[3])*q+1);}
+  if(p<=pHigh){q=p-0.5; r=q*q; return (((((a[0]*r+a[1])*r+a[2])*r+a[3])*r+a[4])*r+a[5])*q / (((((b[0]*r+b[1])*r+b[2])*r+b[3])*r+b[4])*r+1);}
+  q=Math.sqrt(-2*Math.log(1-p)); return -(((((c[0]*q+c[1])*q+c[2])*q+c[3])*q+c[4])*q+c[5]) / ((((d[0]*q+d[1])*q+d[2])*q+d[3])*q+1);
+}
+function pmammParams(){
+  return {
+    L:+document.getElementById("pm-L").value,
+    buy:+document.getElementById("pm-buy").value,
+    pPre:+document.getElementById("pm-p").value/100,
+    out:state.pmamm.out
+  };
+}
+function drawPmammBase(svg,p){
+  const z0=Phi_inv(p.pPre);
+  drawCurvePanel(svg,{
+    color:C.blue, fillBg:"#EFF6FF",
+    title:"PM-AMM GAUSSIAN CURVE", eq:"p = Φ((y−x)/L)",
+    priceFn:(f)=>{ const dz=f*p.buy/p.L; return Phi(z0+dz); }
+  });
+  txt(svg,75,352,`L = ${fmt(p.L)}  ·  uniform LVR  ·  starts at p = ${p.pPre.toFixed(2)}`,{size:9.5,cls:"lbl-mono",fill:C.blueInk,anchor:"start"});
+}
+async function runPmamm(){
+  if(running.pmamm)return; running.pmamm=true;
+  const svg=document.getElementById("svg-pmamm"); const p=pmammParams();
+  document.getElementById("pm-play").disabled=true;
+  drawPmammBase(svg,p);
+  renderLedger("pm-ledger",[{k:"Resolving…",v:0,disp:"—"},{k:"",v:0,disp:""}]);
+  const g=curveChartGeom();
+  const z0=Phi_inv(p.pPre);
+  const priceFn=(f)=>Phi(z0+f*p.buy/p.L);
+  const pPost=priceFn(1), avgPrice=(p.pPre+pPost)/2, shares=p.buy/avgPrice;
+
+  // step 1: moment opens
+  lightStep("pm-steps",0); await sleep(900);
+  // step 2: user pays into the curve
+  lightStep("pm-steps",1);
+  await flyChip(svg,{x:40,y:395},{x:g.x0,y:g.y0-p.pPre*g.ph},fmt(p.buy),C.green,{vanish:true,r:20,fs:11});
+  // step 3: price walks up the Gaussian curve
+  lightStep("pm-steps",2);
+  const {marker}=await animateCurveFill(svg,g,priceFn,C.blue);
+  txt(svg,g.x0+g.pw*0.5,g.y0-pPost*g.ph-30,`bought ${Math.round(shares)} YES @ avg ${avgPrice.toFixed(3)}`,{size:10,cls:"lbl-mono",fill:C.blueInk});
+  await sleep(900);
+  // step 4: resolution snap
+  lightStep("pm-steps",3);
+  const settleY = p.out==="yes" ? g.y0-1*g.ph : g.y0;
+  el("line",{x1:g.x0,y1:settleY,x2:g.x1,y2:settleY,stroke:p.out==="yes"?C.greenInk:C.blueInk,"stroke-width":2,"stroke-dasharray":"5 4"},svg);
+  txt(svg,g.x1,settleY+(p.out==="yes"?-8:16),p.out==="yes"?"YES resolves $1":"YES resolves $0",{size:10,cls:"lbl-mono",fill:p.out==="yes"?C.greenInk:C.blueInk,weight:600,anchor:"end"});
+  for(let i=0;i<=12;i++){const yy=marker.getAttribute("cy")*1+(settleY-(marker.getAttribute("cy")*1))*(i/12); marker.setAttribute("cy",yy); await sleep(40);}
+  await sleep(700);
+  // step 5: settlement P&L
+  lightStep("pm-steps",4);
+  let userPnL,lpPnL;
+  if(p.out==="yes"){ userPnL=shares-p.buy; lpPnL=-userPnL;
+    await flyChip(svg,{x:g.x0+g.pw,y:settleY},{x:40,y:395},fmt(shares),C.green,{vanish:true});
+  } else { userPnL=-p.buy; lpPnL=p.buy; }
+  const cpmmLossPct=(1-2*Math.sqrt(pPost*(1-pPost)))*100;
+  const pmLossPct=(phi(Phi_inv(pPost))/0.3989)*100;
+  renderLedger("pm-ledger",[
+    {k:"LP P&L",v:Math.round(lpPnL),n:`Gaussian curve concentrates liquidity near 0.5, so the held-to-resolution loss is uniform: ~${pmLossPct.toFixed(0)}% of L here, vs ${cpmmLossPct.toFixed(0)}% for CPMM at the same price`},
+    {k:"User P&L",v:Math.round(userPnL),n:`bought ${Math.round(shares)} YES @ avg ${avgPrice.toFixed(3)}; price moved ${p.pPre.toFixed(2)} → ${pPost.toFixed(2)}`}
+  ]);
+  running.pmamm=false; document.getElementById("pm-play").disabled=false;
+}
+
+/* ================================================================
+   DYNAMIC PM-AMM — PM-AMM with time-decaying L
+================================================================ */
+function dpmammParams(){
+  return {
+    L0:+document.getElementById("dp-L").value,
+    buy:+document.getElementById("dp-buy").value,
+    timeFrac:+document.getElementById("dp-t").value/100,  // fraction of time-to-expiry remaining
+    out:state.dpmamm.out
+  };
+}
+function drawDpmammBase(svg,p){
+  const Leff=p.L0*Math.sqrt(p.timeFrac);
+  drawCurvePanel(svg,{
+    color:C.purple, fillBg:"#FAF5FF",
+    title:"DYNAMIC PM-AMM", eq:"L(t)=L₀·√(T−t)",
+    priceFn:(f)=>Phi(f*p.buy/Leff)
+  });
+  // also draw the "static L₀" curve (dashed, gentler) for contrast
+  const g=curveChartGeom();
+  let ds="";
+  for(let i=0;i<=80;i++){const f=i/80; const ps=Math.min(0.999,Phi(f*p.buy/p.L0)); ds+=(i===0?"M":"L")+(g.x0+f*g.pw).toFixed(1)+","+(g.y0-ps*g.ph).toFixed(1)+" ";}
+  el("path",{d:ds,stroke:C.ink3,"stroke-width":1.5,fill:"none","stroke-dasharray":"4 3"},svg);
+  txt(svg,g.x1,g.y0-Phi(p.buy/p.L0)*g.ph+14,"static L₀ (gentler)",{size:9,cls:"lbl-mono",fill:C.ink3,anchor:"end"});
+  txt(svg,75,352,`time left ${(p.timeFrac*100).toFixed(0)}% → L_eff = ${fmt(Leff)} (vs L₀ ${fmt(p.L0)}) · steeper = less LP inventory left`,{size:9.5,cls:"lbl-mono",fill:C.purple,anchor:"start"});
+}
+async function runDpmamm(){
+  if(running.dpmamm)return; running.dpmamm=true;
+  const svg=document.getElementById("svg-dpmamm"); const p=dpmammParams();
+  document.getElementById("dp-play").disabled=true;
+  drawDpmammBase(svg,p);
+  renderLedger("dp-ledger",[{k:"Resolving…",v:0,disp:"—"},{k:"",v:0,disp:""}]);
+  const g=curveChartGeom();
+  const Leff=p.L0*Math.sqrt(p.timeFrac);
+  const priceFn=(f)=>Phi(f*p.buy/Leff);
+  const pPost=priceFn(1), avgPrice=(0.5+pPost)/2, shares=p.buy/avgPrice;
+
+  // step 1: clock — L shrinks toward expiry
+  lightStep("dp-steps",0); await sleep(1000);
+  // step 2: user pays into the (smaller) curve
+  lightStep("dp-steps",1);
+  await flyChip(svg,{x:40,y:395},{x:g.x0,y:g.y0-0.5*g.ph},fmt(p.buy),C.green,{vanish:true,r:20,fs:11});
+  // step 3: price walks up the steeper dynamic curve
+  lightStep("dp-steps",2);
+  const {marker}=await animateCurveFill(svg,g,priceFn,C.purple);
+  txt(svg,g.x0+g.pw*0.5,g.y0-pPost*g.ph-30,`bought ${Math.round(shares)} YES @ avg ${avgPrice.toFixed(3)}`,{size:10,cls:"lbl-mono",fill:C.purple});
+  await sleep(900);
+  // step 4: resolution snap
+  lightStep("dp-steps",3);
+  const settleY = p.out==="yes" ? g.y0-1*g.ph : g.y0;
+  el("line",{x1:g.x0,y1:settleY,x2:g.x1,y2:settleY,stroke:p.out==="yes"?C.greenInk:C.blueInk,"stroke-width":2,"stroke-dasharray":"5 4"},svg);
+  txt(svg,g.x1,settleY+(p.out==="yes"?-8:16),p.out==="yes"?"YES resolves $1":"YES resolves $0",{size:10,cls:"lbl-mono",fill:p.out==="yes"?C.greenInk:C.blueInk,weight:600,anchor:"end"});
+  for(let i=0;i<=12;i++){const yy=marker.getAttribute("cy")*1+(settleY-(marker.getAttribute("cy")*1))*(i/12); marker.setAttribute("cy",yy); await sleep(40);}
+  await sleep(700);
+  // step 5: settlement P&L
+  lightStep("dp-steps",4);
+  let userPnL,lpPnL;
+  if(p.out==="yes"){ userPnL=shares-p.buy; lpPnL=-userPnL;
+    await flyChip(svg,{x:g.x0+g.pw,y:settleY},{x:40,y:395},fmt(shares),C.green,{vanish:true});
+  } else { userPnL=-p.buy; lpPnL=p.buy; }
+  const staticLoss=p.L0*phi(Phi_inv(pPost)), dynLoss=Leff*phi(Phi_inv(pPost));
+  renderLedger("dp-ledger",[
+    {k:"LP P&L",v:Math.round(lpPnL),n:`liquidity shrank to L_eff=${fmt(Leff)} near expiry, so the price moved further per dollar and the LP holds less losing inventory: ${fmt(dynLoss)} loss vs ${fmt(staticLoss)} for static L₀`},
+    {k:"User P&L",v:Math.round(userPnL),n:`traded against ${(p.timeFrac*100).toFixed(0)}%-of-original liquidity → ${Math.round(shares)} YES @ avg ${avgPrice.toFixed(3)}`}
+  ]);
+  running.dpmamm=false; document.getElementById("dp-play").disabled=false;
+}
+
+/* ================================================================
+   HYBRID AMM + HOUSE
+================================================================ */
+function hybridParams(){
+  return {
+    threshold:+document.getElementById("hb-t").value,
+    stake:+document.getElementById("hb-stake").value,
+    prob:+document.getElementById("hb-prob").value/100,
+    vig:+document.getElementById("hb-vig").value/100,
+    out:state.hybrid.out
+  };
+}
+function drawHybridBase(svg,p){
+  clear(svg);
+  // AMM box (left)
+  el("rect",{x:30,y:80,width:200,height:140,rx:10,fill:"#FFFBEB",stroke:C.amber,"stroke-width":2},svg);
+  txt(svg,130,100,"AMM TIER",{size:11,cls:"lbl-mono",fill:C.amberInk,weight:600});
+  txt(svg,130,118,"(small bets · always-on quote)",{size:9,cls:"lbl-mono",fill:C.ink3});
+  // tiny bell sketch inside
+  let bell="";
+  for(let i=0;i<=20;i++){const z=-2+4*i/20; const x=50+i*160/20; const y=200-phi(z)*120; bell+=(i===0?"M":"L")+x.toFixed(1)+","+y.toFixed(1)+" ";}
+  el("path",{d:bell,stroke:C.amber,"stroke-width":1.8,fill:"none"},svg);
+  txt(svg,130,210,"impermanent loss on settlement",{size:8.5,cls:"lbl-mono",fill:C.amber});
+  // House book (right)
+  el("rect",{x:330,y:80,width:200,height:140,rx:10,fill:"#ECFDF5",stroke:C.green,"stroke-width":2},svg);
+  txt(svg,430,100,"HOUSE BOOK",{size:11,cls:"lbl-mono",fill:C.greenInk,weight:600});
+  txt(svg,430,118,"(big bets · model-priced + vig)",{size:9,cls:"lbl-mono",fill:C.ink3});
+  txt(svg,430,148,"model "+p.prob.toFixed(2),{size:11,cls:"lbl-mono",fill:C.ink});
+  txt(svg,430,166,`+ ${(p.vig*100).toFixed(0)}% vig`,{size:11,cls:"lbl-mono",fill:C.greenInk,weight:600});
+  txt(svg,430,200,"booked from vault P&L",{size:8.5,cls:"lbl-mono",fill:C.green});
+  // routing diamond (top)
+  const diamond="M 280,30 L 320,60 L 280,90 L 240,60 Z";
+  el("path",{d:diamond,fill:"#fff",stroke:C.ink,"stroke-width":2},svg);
+  txt(svg,280,55,"router",{size:10,cls:"lbl-mono",fill:C.ink,weight:600});
+  txt(svg,280,69,`thr ${fmt(p.threshold)}`,{size:9,cls:"lbl-mono",fill:C.ink3});
+  // pool (center bottom)
+  el("circle",{cx:280,cy:330,r:62,fill:"#F8FAFC",stroke:C.ink,"stroke-width":2.5},svg);
+  txt(svg,280,318,"SHARED VAULT",{size:10,cls:"lbl-mono",fill:C.ink3,weight:600});
+  txt(svg,280,342,fmt(100000),{size:18,weight:700,cls:"display"}).setAttribute("id","hb-vaultamt");
+  txt(svg,280,360,"funds both tiers",{size:9,cls:"lbl-mono",fill:C.ink2});
+  // user
+  drawActor(svg,75,330,42,"#fff",C.blue,"User",`stake ${fmt(p.stake)}`,{ls:12});
+  // moment
+  el("rect",{x:380,y:330,width:140,height:36,rx:18,fill:"#fff",stroke:C.line2,"stroke-width":1.5},svg);
+  txt(svg,450,353,'"Penalty scored?"',{size:11,weight:600}).setAttribute("id","hb-moment");
+}
+async function runHybrid(){
+  if(running.hybrid)return; running.hybrid=true;
+  const svg=document.getElementById("svg-hybrid"); const p=hybridParams();
+  document.getElementById("hb-play").disabled=true;
+  drawHybridBase(svg,p);
+  renderLedger("hb-ledger",[{k:"Resolving…",v:0,disp:"—"},{k:"",v:0,disp:""}]);
+  const userPt={x:75,y:330}, vaultPt={x:280,y:330}, routerPt={x:280,y:60};
+  const ammPt={x:130,y:150}, housePt={x:430,y:150};
+
+  // step 1: moment opens
+  lightStep("hb-steps",0); pulse(document.getElementById("hb-moment")); await sleep(1100);
+
+  // step 2: user stakes → router
+  lightStep("hb-steps",1);
+  await flyChip(svg,userPt,routerPt,fmt(p.stake),C.blue,{vanish:false,r:18,fs:10.5});
+
+  // step 3: router decides
+  lightStep("hb-steps",2);
+  await sleep(800);
+  const useHouse = p.stake >= p.threshold;
+  // route the chip
+  const destPt = useHouse ? housePt : ammPt;
+  txt(svg,280,103,useHouse?"→ HOUSE (big bet)":"→ AMM (small bet)",{size:10,cls:"lbl-mono",fill:useHouse?C.greenInk:C.amberInk,weight:600});
+  await sleep(900);
+
+  // step 4: animated routing
+  lightStep("hb-steps",3);
+  await flyChip(svg,routerPt,destPt,fmt(p.stake),useHouse?C.green:C.amber,{vanish:true,r:16,fs:10});
+
+  // step 5: resolve and settle
+  lightStep("hb-steps",4);
+  document.getElementById("hb-moment").textContent = p.out==="yes"?"SCORED ✓ — YES wins":"MISSED — NO wins";
+  document.getElementById("hb-moment").setAttribute("fill", p.out==="yes"?C.greenInk:C.blueInk);
+  await sleep(1300);
+
+  // P&L math: AMM tier = CPMM-like divergence; House tier = vault math
+  let lpPnL, userPnL, note;
+  const yesQ = Math.min(.92, Math.max(.05, p.prob + p.vig/2));
+  if(useHouse){
+    // vault book math
+    if(p.out==="yes"){
+      const payout = p.stake / yesQ;
+      lpPnL = p.stake - payout; userPnL = payout - p.stake;
+    } else {
+      lpPnL = p.stake; userPnL = -p.stake;
+    }
+    note = `Routed to HOUSE: vault took the other side @ ${yesQ.toFixed(2)} odds + ${(p.vig*100).toFixed(0)}% vig`;
+  } else {
+    // AMM tier — simplified CPMM-style settlement
+    if(p.out==="yes"){
+      // AMM pays out shares at $1, but charges trading fee 2.5%
+      const fee = p.stake * 0.025;
+      const shares = p.stake / 0.45;  // rough CPMM avg price
+      lpPnL = fee + p.stake - shares;
+      userPnL = -lpPnL;
+    } else {
+      const fee = p.stake * 0.025;
+      lpPnL = p.stake + fee - p.stake*0.05;  // small divergence cost
+      userPnL = -lpPnL;
+    }
+    note = `Routed to AMM: 2.5% fee, impermanent loss absorbed by vault`;
+  }
+  // money flow on outcome
+  if(p.out==="yes" && userPnL>0){
+    await flyChip(svg,destPt,userPt,fmt(p.stake+userPnL),C.green,{vanish:true});
+  }
+  renderLedger("hb-ledger",[
+    {k:"Vault P&L",v:Math.round(lpPnL),n:note},
+    {k:"User P&L",v:Math.round(userPnL),n:p.out==="yes"?"won":"lost the stake"}
+  ]);
+  running.hybrid=false; document.getElementById("hb-play").disabled=false;
+}
+
+
+// step lists for the 4 new models
+renderSteps("lm-steps",[
+  "Moment opens; the LMSR curve sits at price 0.500.",
+  "User pays <b>$ into the curve</b> to buy YES — money enters the pool.",
+  "Price <b>walks up the cost curve</b> C(q); the shaded area is what the user paid (slippage).",
+  "Moment resolves → the price snaps to <b>$1 (YES wins)</b> or <b>$0 (NO wins)</b>.",
+  "Settlement: if YES won the LP pays out the winning shares (a loss, but <b>capped at b·ln2</b>); if NO won the LP keeps the stake."
+]);
+renderSteps("pm-steps",[
+  "Moment opens; the Gaussian curve sits at the starting price.",
+  "User pays <b>$ into the curve</b> to buy YES.",
+  "Price <b>walks up the steep Gaussian curve</b> — it moves fast, so the user gets fewer cheap shares.",
+  "Moment resolves → price snaps to <b>$1</b> or <b>$0</b>.",
+  "Settlement: because the curve held little inventory at the edge, the LP's loss is <b>uniform and far smaller than CPMM</b>."
+]);
+renderSteps("dp-steps",[
+  "Match clock running → liquidity has shrunk to <b>L_eff = L₀·√(time left)</b>.",
+  "User pays $ into the <b>now-smaller curve</b> (dashed line shows the gentler static L₀).",
+  "Price walks up the <b>steeper dynamic curve</b> — bigger impact per dollar, fewer shares to the user.",
+  "Moment resolves → price snaps to <b>$1</b> or <b>$0</b>.",
+  "Settlement: the smaller L_eff means the LP holds <b>less losing inventory</b> → lowest LP loss of any AMM."
+]);
+renderSteps("hb-steps",[
+  "Moment opens; user clicks YES with a stake.",
+  "Order hits the <b>smart router</b>: compare stake to threshold.",
+  "Router decides — small bet → AMM tier; large bet → House book.",
+  "Stake flies to the chosen tier; vault is the LP for both.",
+  "Settlement: vault collects AMM fee + house margin minus any impermanent loss / liability."
+]);
+
+// click wiring
+document.getElementById("lm-play").onclick=runLmsr; document.getElementById("lm-replay").onclick=runLmsr;
+document.getElementById("pm-play").onclick=runPmamm; document.getElementById("pm-replay").onclick=runPmamm;
+document.getElementById("dp-play").onclick=runDpmamm; document.getElementById("dp-replay").onclick=runDpmamm;
+document.getElementById("hb-play").onclick=runHybrid; document.getElementById("hb-replay").onclick=runHybrid;
+
+// outcome toggle wiring for the 4 new models
+function wireOutcomeToggle(prefix, modelKey){
+  document.querySelectorAll('#'+prefix+'-out button').forEach(b=>{
+    b.addEventListener('click',()=>{
+      document.querySelectorAll('#'+prefix+'-out button').forEach(x=>x.classList.remove('on-yes','on-no'));
+      b.classList.add(b.dataset.o==='yes'?'on-yes':'on-no');
+      state[modelKey].out=b.dataset.o;
+    });
+  });
+}
+wireOutcomeToggle("lm","lmsr");
+wireOutcomeToggle("pm","pmamm");
+wireOutcomeToggle("dp","dpmamm");
+wireOutcomeToggle("hb","hybrid");
+
+// value-label wiring for new model inputs
+function liveLabel(id,fmt){const e=document.getElementById(id),lbl=document.getElementById(id+"-v");if(!e||!lbl)return;
+  const upd=()=>lbl.textContent=fmt(+e.value); e.addEventListener("input",upd); upd();}
+liveLabel("lm-b",   v=>"$"+v.toLocaleString());
+liveLabel("lm-buy", v=>"$"+v.toLocaleString());
+liveLabel("pm-L",   v=>"$"+v.toLocaleString());
+liveLabel("pm-buy", v=>"$"+v.toLocaleString());
+liveLabel("pm-p",   v=>(v/100).toFixed(2));
+liveLabel("dp-L",   v=>"$"+v.toLocaleString());
+liveLabel("dp-buy", v=>"$"+v.toLocaleString());
+liveLabel("dp-t",   v=>v+"%");
+liveLabel("hb-t",   v=>"$"+v.toLocaleString());
+liveLabel("hb-stake",v=>"$"+v.toLocaleString());
+liveLabel("hb-prob",v=>(v/100).toFixed(2));
+liveLabel("hb-vig", v=>v+"%");
+
+
+// ============================================================ SIM-DETAIL INJECTION
+const SIM_DEFAULTS={
+  vault:{prefix:"v",  seed2:100000,moments:25,dur:60,users:200,vig2:6, inf:4, buf:2, seedn:7},
+  cpmm: {prefix:"c",  seed2:100000,moments:25,dur:60,users:200,vig2:2, seedn:7},
+  pari: {prefix:"pr", seed2:100000,moments:25,dur:60,users:200,vig2:8, seedn:7},
+  clob: {prefix:"cl", seed2:100000,moments:25,dur:60,users:200,vig2:1, seedn:7},
+  lmsr: {prefix:"lm", seed2:100000,moments:25,dur:60,users:200,vig2:2, seedn:7},
+  pmamm:{prefix:"pm", seed2:100000,moments:25,dur:60,users:200,vig2:2, seedn:7},
+  dpmamm:{prefix:"dp",seed2:100000,moments:25,dur:60,users:200,vig2:2, seedn:7},
+  hybrid:{prefix:"hb",seed2:100000,moments:25,dur:60,users:200,vig2:6, inf:4, buf:2, seedn:7}
+};
+function simDetailHTML(pfx,model,showVig){
+  return `
+  <div class="sim-detail">
+    <div class="sim-top">
+      <div class="sim-card">
+        <h4>Simulation parameters <button class="mini-reroll" id="${pfx}-reroll">↻ re-roll</button></h4>
+        <div class="sp"><label>Pool seed <b id="${pfx}-seed2-v"></b></label><input type="range" id="${pfx}-seed2" min="25000" max="500000" step="25000" value="${SIM_DEFAULTS[model].seed2}"><div class="rng"><span>$25k</span><span>$500k</span></div></div>
+        <div class="sp"><label>Micro-moments / game <b id="${pfx}-moments-v"></b></label><input type="range" id="${pfx}-moments" min="10" max="40" step="1" value="${SIM_DEFAULTS[model].moments}"><div class="rng"><span>10</span><span>40</span></div></div>
+        <div class="sp"><label>Users (bettors) <b id="${pfx}-users-v"></b></label><input type="range" id="${pfx}-users" min="25" max="1000" step="25" value="${SIM_DEFAULTS[model].users}"><div class="rng"><span>25</span><span>1000</span></div></div>
+        <div class="sp"><label>Match duration <b id="${pfx}-dur-v"></b></label><input type="range" id="${pfx}-dur" min="30" max="120" step="5" value="${SIM_DEFAULTS[model].dur}"><div class="rng"><span>30 min</span><span>120 min</span></div></div>
+        <div class="sp" ${showVig?"":'style="display:none"'}><label>${model==='pari'?'Rake':model==='clob'?'Spread':'Vig / margin'} <b id="${pfx}-vig2-v"></b></label><input type="range" id="${pfx}-vig2" min="1" max="12" step="1" value="${SIM_DEFAULTS[model].vig2}"><div class="rng"><span>1%</span><span>12%</span></div></div>
+        ${(model==='vault')?`<div class="sp"><label>Informed flow <b id="${pfx}-inf-v"></b></label><input type="range" id="${pfx}-inf" min="0" max="25" step="1" value="${SIM_DEFAULTS[model].inf}"><div class="rng"><span>0%</span><span>25%</span></div></div>
+        <div class="sp"><label>Market-close buffer <b id="${pfx}-buf-v"></b></label><input type="range" id="${pfx}-buf" min="0" max="10" step="1" value="${SIM_DEFAULTS[model].buf}"><div class="rng"><span>0s</span><span>10s</span></div></div>`:""}
+        <input type="hidden" id="${pfx}-seedn" value="${SIM_DEFAULTS[model].seedn}">
+      </div>
+      <div class="sim-results-head">
+        <h4 style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--ink-3);margin-bottom:12px">Simulation results</h4>
+        <div class="res-grid" id="${pfx}-results"></div>
+        <div class="chart-block" style="margin-top:16px"><h5>Pool value over match</h5><div class="csub">$ in the pool, per minute</div><svg id="${pfx}-poolchart" style="width:100%;height:auto"></svg></div>
+      </div>
+    </div>
+    <div class="sim-charts">
+      <div class="chart-block"><h5>Cumulative P&L — LP vs players</h5><div class="csub">running profit/loss over the match</div><svg id="${pfx}-pnlchart" style="width:100%;height:auto"></svg>
+        <div class="chart-legend"><span><i style="background:var(--green)"></i>LP P&L</span><span><i style="background:var(--blue)"></i>Player P&L</span></div></div>
+      ${(model!=='vault'&&model!=='pari'&&model!=='clob')?`<div class="chart-block"><h5>Cumulative impermanent loss</h5><div class="csub">AMM LP value lost to price divergence, summed across micro-moments</div><svg id="${pfx}-ilchart" style="width:100%;height:auto"></svg>
+        <div class="chart-legend"><span><i style="background:var(--red)"></i>Cumulative IL ($)</span><span><i style="background:var(--amber)"></i>Fees collected ($)</span></div></div>`:""}
+      <div class="chart-block"><h5>Per-market LP P&L</h5><div class="csub">one bar per micro-moment</div><svg id="${pfx}-barchart" style="width:100%;height:auto"></svg>
+        <div class="chart-legend"><span><i style="background:var(--green)"></i>LP wins</span><span><i style="background:var(--red)"></i>LP loses</span><span><i style="background:var(--ink-3)"></i>No quote</span></div></div>
+      <div class="chart-block"><h5>Return distribution — 200 simulated matches</h5><div class="csub">the single match above is one draw; this is the distribution</div><svg id="${pfx}-mcchart" style="width:100%;height:auto"></svg>
+        <div class="mc-stats" id="${pfx}-mcstats"></div></div>
+      ${(model==='vault')?`<div class="chart-block"><h5>Risk vs odds (per market)</h5><div class="csub">edge is flat in odds — liability and sharp-money cost are not (log scale)</div><svg id="${pfx}-riskodds" style="width:100%;height:auto"></svg>
+        <div class="chart-legend"><span><i style="background:var(--green)"></i>Vig edge per $1k matched volume</span><span><i style="background:var(--red)"></i>Liability &amp; informed-flow cost per $1k staked</span></div></div>`:""}
+    </div>
+    <div class="log-wrap">
+      <div class="log-head"><h5>Per-market log</h5><span class="lc" id="${pfx}-logcount"></span></div>
+      <div class="log-scroll"><table class="mlog"><thead><tr><th>#</th><th>Min</th><th>Market</th><th>Vol</th><th>Out</th><th>LP Δ</th><th>Pool</th></tr></thead><tbody id="${pfx}-logbody"></tbody></table></div>
+    </div>
+    <div class="swu" id="${pfx}-swu"></div>
+    <div class="method" id="${pfx}-method"></div>
+  </div>`;
+}
+// inject into each panel (after its takeaway)
+[["p-vault","v","vault",true],["p-cpmm","c","cpmm",true],["p-pari","pr","pari",true],["p-clob","cl","clob",true],["p-lmsr","lm","lmsr",false],["p-pmamm","pm","pmamm",false],["p-dpmamm","dp","dpmamm",false],["p-hybrid","hb","hybrid",true]].forEach(([panel,pfx,model,vig])=>{
+  const p=document.getElementById(panel);
+  const div=document.createElement("div"); div.innerHTML=simDetailHTML(pfx,model,vig);
+  p.appendChild(div.firstElementChild);
+  // param value labels + live re-run
+  const fmtSeed=v=>fmtK(+v), id=x=>document.getElementById(pfx+x);
+  const upd=()=>{
+    id("-seed2-v").textContent=fmtK(+id("-seed2").value);
+    id("-moments-v").textContent=id("-moments").value;
+    id("-users-v").textContent=id("-users").value;
+    id("-dur-v").textContent=id("-dur").value+" min";
+    if(id("-vig2-v")) id("-vig2-v").textContent=id("-vig2").value+"%";
+    if(id("-inf-v")) id("-inf-v").textContent=id("-inf").value+"%";
+    if(id("-buf-v")) id("-buf-v").textContent=id("-buf").value+"s";
+    id("-logcount").textContent=id("-moments").value+" micro-moments";
+    runSim(pfx,model);
+  };
+  ["-seed2","-moments","-users","-dur","-vig2","-inf","-buf"].forEach(s=>{const e=id(s);if(e)e.addEventListener("input",upd);});
+  id("-reroll").addEventListener("click",()=>{ id("-seedn").value=Math.floor(Math.random()*9999); upd(); });
+  renderSWU(pfx,model);
+  renderMethod(pfx,model);
+  upd();
+});
+// the CLOB animation sliders are also simulation inputs — one physics, two views
+["cl-lat","cl-life"].forEach(idn=>document.getElementById(idn).addEventListener("input",()=>runSim("cl","clob")));
+
+// ============================================================
+//  INTERACTIVE INVARIANT CURVES ENGINE
+// ============================================================
+const curvesState = { curve:"cpmm", L:1000, T:400, out:"yes" };
+
+const CURVE_META = {
+  cpmm:  { eq:"x · y = k",                  color:"#D85A30", name:"CPMM" },
+  lmsr:  { eq:"C(q) = b · ln Σ e^(qᵢ/b)",   color:"#534AB7", name:"LMSR" },
+  pmamm: { eq:"p = Φ((y − x) / L)",         color:"#0F6E56", name:"PM-AMM" },
+  csmm:  { eq:"x + y = k",                  color:"#185FA5", name:"CSMM" }
+};
+
+// Given a curve, liquidity L and trade size T (USD into YES), return
+// { shares, avgPrice, pricePost, lpInventory, lpPnL } at resolution.
+function curveTrade(curve, L, T, out){
+  let shares, pricePost, avgPrice;
+  if(curve==="cpmm"){
+    // mint complete set + swap unwanted NO back in
+    const yNew = L + 2*T;
+    const xNew = (L+T)*(L+T)/(L+2*T);
+    shares = (L+T) - xNew + T;
+    pricePost = yNew/(xNew+yNew);
+    avgPrice = T/shares;
+  } else if(curve==="csmm"){
+    // constant sum: price flat at 0.5 until one side drains
+    avgPrice = 0.5;
+    shares = T/0.5;
+    pricePost = (shares < L*2) ? 0.5 : 0.999; // drains then pins
+  } else if(curve==="lmsr"){
+    const b = L; // use L as b
+    // cost = b ln( e^(q/b)+1 ) - b ln 2  → solve q for given cost T
+    // e^(q/b) = e^(T/b)*2 - 1
+    const eqb = Math.exp(T/b)*2 - 1;
+    shares = b*Math.log(eqb);
+    pricePost = eqb/(eqb+1);
+    avgPrice = T/shares;
+  } else if(curve==="pmamm"){
+    // gaussian: start at p=0.5 (z=0), move dz = T/L
+    const dz = T/L;
+    const zPost = dz;
+    pricePost = Phi(zPost);
+    avgPrice = (0.5 + pricePost)/2;
+    shares = T/avgPrice;
+  }
+  // settlement: YES shares pay $1 if YES wins, else $0
+  let lpPnL, lpInventory;
+  if(out==="yes"){
+    const payout = shares;          // LP pays out winning shares
+    lpPnL = T - payout;             // collected T, pays shares
+    lpInventory = -shares;          // LP short the winning shares
+  } else {
+    lpPnL = T;                      // keeps the stake, shares worthless
+    lpInventory = 0;
+  }
+  return { shares, avgPrice, pricePost, lpPnL, lpInventory };
+}
+
+function drawCurvesSVG(){
+  const svg = document.getElementById("svg-curves");
+  if(!svg) return;
+  const C = curvesState.curve;
+  const meta = CURVE_META[C];
+  const L = curvesState.L, T = curvesState.T;
+  while(svg.firstChild) svg.removeChild(svg.firstChild);
+  const NS="http://www.w3.org/2000/svg";
+  const mk=(t,a)=>{const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);return e;};
+
+  // plot area
+  const x0=56, y0=360, x1=480, y1=40;        // axes box
+  const pw=x1-x0, ph=y0-y1;
+  // axes
+  svg.appendChild(mk("line",{x1:x0,y1:y0,x2:x1,y2:y0,stroke:"#C8C2B0","stroke-width":1}));
+  svg.appendChild(mk("line",{x1:x0,y1:y0,x2:x0,y2:y1,stroke:"#C8C2B0","stroke-width":1}));
+
+  // We plot marginal YES price (y axis, 0..1) vs net YES bought (x axis, 0..maxT)
+  const maxT = 4000;
+  const px = v => x0 + (v/maxT)*pw;            // trade size → x
+  const py = p => y0 - p*ph;                   // price → y
+
+  // y gridlines at 0, .25, .5, .75, 1
+  [0,.25,.5,.75,1].forEach(p=>{
+    svg.appendChild(mk("line",{x1:x0,y1:py(p),x2:x1,y2:py(p),stroke:"#F0EAD9","stroke-width":1}));
+    const tx=mk("text",{x:x0-8,y:py(p)+4,"text-anchor":"end","font-family":"'IBM Plex Mono',monospace","font-size":"10","fill":"#8B7E6A"});
+    tx.textContent=p.toFixed(2); svg.appendChild(tx);
+  });
+  // x ticks
+  [0,1000,2000,3000,4000].forEach(v=>{
+    const tx=mk("text",{x:px(v),y:y0+18,"text-anchor":"middle","font-family":"'IBM Plex Mono',monospace","font-size":"10","fill":"#8B7E6A"});
+    tx.textContent="$"+(v/1000)+"k"; svg.appendChild(tx);
+  });
+  // axis labels
+  const xl=mk("text",{x:(x0+x1)/2,y:y0+38,"text-anchor":"middle","font-family":"'IBM Plex Sans',sans-serif","font-size":"11","fill":"#5A5A5A"});
+  xl.textContent="Net YES purchased ($)"; svg.appendChild(xl);
+  const yl=mk("text",{x:16,y:(y0+y1)/2,"text-anchor":"middle","font-family":"'IBM Plex Sans',sans-serif","font-size":"11","fill":"#5A5A5A",transform:`rotate(-90 16 ${(y0+y1)/2})`});
+  yl.textContent="Marginal YES price"; svg.appendChild(yl);
+
+  // build the curve path: marginal price as a function of net-YES-bought
+  let d="";
+  for(let i=0;i<=120;i++){
+    const t = (i/120)*maxT;
+    const r = curveTrade(C, L, Math.max(0.01,t), "yes");
+    const p = Math.min(0.999, Math.max(0.001, r.pricePost));
+    d += (i===0?"M":"L") + px(t).toFixed(1) + "," + py(p).toFixed(1) + " ";
+  }
+  svg.appendChild(mk("path",{d,stroke:meta.color,"stroke-width":2.5,fill:"none"}));
+
+  // current trade marker
+  const r = curveTrade(C, L, Math.max(0.01,T), "yes");
+  const cpx = px(T), cpy = py(Math.min(0.999,Math.max(0.001,r.pricePost)));
+  // drop lines
+  svg.appendChild(mk("line",{x1:cpx,y1:y0,x2:cpx,y2:cpy,stroke:meta.color,"stroke-width":1,"stroke-dasharray":"3 3",opacity:.5}));
+  svg.appendChild(mk("line",{x1:x0,y1:cpy,x2:cpx,y2:cpy,stroke:meta.color,"stroke-width":1,"stroke-dasharray":"3 3",opacity:.5}));
+  svg.appendChild(mk("circle",{cx:cpx,cy:cpy,r:6,fill:"#fff",stroke:meta.color,"stroke-width":2.5}));
+  // price label at marker
+  const pl=mk("text",{x:cpx+10,y:cpy-8,"font-family":"'IBM Plex Mono',monospace","font-size":"12","font-weight":"600","fill":meta.color});
+  pl.textContent="p = "+r.pricePost.toFixed(3); svg.appendChild(pl);
+
+  // shaded slippage region (avg price vs spot) — a soft band from 0.5 to pricePost
+  // title chip
+  const tc=mk("text",{x:x1,y:y1-12,"text-anchor":"end","font-family":"'IBM Plex Mono',monospace","font-size":"11","font-weight":"600","fill":meta.color});
+  tc.textContent=meta.name; svg.appendChild(tc);
+}
+
+function updateCurvesReadouts(){
+  const C=curvesState.curve, L=curvesState.L, T=curvesState.T, out=curvesState.out;
+  const r=curveTrade(C,L,Math.max(0.01,T),out);
+  const slippage = T>0 ? (r.avgPrice-0.5)/0.5*100 : 0;
+  const host=document.getElementById("cv-readouts");
+  host.innerHTML=`
+    <div class="readout-row"><span class="rk">Shares received</span><span class="rv">${Math.round(r.shares).toLocaleString()}</span></div>
+    <div class="readout-row"><span class="rk">Avg price paid</span><span class="rv">${r.avgPrice.toFixed(3)}</span></div>
+    <div class="readout-row"><span class="rk">Spot price after</span><span class="rv">${r.pricePost.toFixed(3)}</span></div>
+    <div class="readout-row"><span class="rk">Slippage vs 0.50</span><span class="rv">${slippage>=0?"+":""}${slippage.toFixed(1)}%</span></div>
+    <div class="readout-row"><span class="rk">LP inventory at resolution</span><span class="rv ${r.lpInventory<0?'neg':''}">${r.lpInventory<0?'−':''}${Math.abs(Math.round(r.lpInventory)).toLocaleString()} sh</span></div>
+    <div class="readout-row"><span class="rk">LP P&L this trade</span><span class="rv ${r.lpPnL>=0?'pos':'neg'}">${r.lpPnL>=0?'+':'−'}$${Math.abs(Math.round(r.lpPnL)).toLocaleString()}</span></div>
+  `;
+}
+
+const CURVE_EXPLAIN = {
+  cpmm:`<span class="ce-h">CPMM — the hyperbola</span>The pool keeps <b>x · y = k</b> constant. Buying YES pulls YES shares out, so to keep the product fixed the price rises along a hyperbola. Notice how <b>slowly</b> the price climbs at first, then how the curve flattens near 1.0 — at extreme prices the LP is still holding a huge NO inventory that resolves to zero. That fat tail is exactly why CPMM LPs get destroyed on markets that resolve near certainty.`,
+  lmsr:`<span class="ce-h">LMSR — the bounded sigmoid</span>Price comes from the derivative of a <b>log cost function</b> with liquidity budget b. The curve is a clean logistic sigmoid. Its superpower: total LP loss is <b>capped at b · ln(2) ≈ 0.69·b</b> no matter how far the price moves. Watch the LP inventory readout — it grows, but the bound means it can never blow up the way CPMM does. The catch: it's a subsidy budget, not a fee engine, so LPs don't earn in expectation.`,
+  pmamm:`<span class="ce-h">PM-AMM — the Gaussian curve</span>Paradigm's curve uses the <b>normal CDF</b>: price = Φ((y−x)/L). It's a steeper sigmoid that concentrates liquidity near 0.5 and has thin tails. The result is <b>uniform LVR</b> — the LP loses roughly the same fraction at any resolution price, instead of getting wrecked at the extremes like CPMM. Push the trade size up and compare the spot price to CPMM at the same point: PM-AMM moves faster, leaving the LP holding far less losing inventory.`,
+  csmm:`<span class="ce-h">CSMM — the straight line</span>Constant sum keeps <b>x + y = k</b>, so the price is <b>flat at 0.50</b> for every trade — zero slippage — right up until one side of the pool is completely drained, then it falls off a cliff. Great for assets that are genuinely 1:1 (pegged stablecoins), useless for prediction markets: an arbitrageur empties the winning side at face value and the LP is left holding only the losing side. It's the cautionary baseline that motivates every curved AMM.`
+};
+
+function refreshCurves(){
+  drawCurvesSVG();
+  updateCurvesReadouts();
+  const meta=CURVE_META[curvesState.curve];
+  document.getElementById("curve-eq").textContent=meta.eq;
+  document.getElementById("curves-explain").innerHTML=CURVE_EXPLAIN[curvesState.curve];
+}
+
+// wiring
+(function wireCurves(){
+  const pick=document.getElementById("curve-pick");
+  if(!pick) return;
+  pick.querySelectorAll("button").forEach(b=>{
+    b.addEventListener("click",()=>{
+      pick.querySelectorAll("button").forEach(x=>x.classList.remove("on"));
+      b.classList.add("on");
+      curvesState.curve=b.dataset.c;
+      refreshCurves();
+    });
+  });
+  const L=document.getElementById("cv-L"), T=document.getElementById("cv-T");
+  L.addEventListener("input",()=>{curvesState.L=+L.value;document.getElementById("cv-L-v").textContent="$"+(+L.value).toLocaleString();refreshCurves();});
+  T.addEventListener("input",()=>{curvesState.T=+T.value;document.getElementById("cv-T-v").textContent="$"+(+T.value).toLocaleString();refreshCurves();});
+  document.querySelectorAll("#cv-out button").forEach(b=>{
+    b.addEventListener("click",()=>{
+      document.querySelectorAll("#cv-out button").forEach(x=>x.classList.remove("on-yes","on-no"));
+      b.classList.add(b.dataset.o==="yes"?"on-yes":"on-no");
+      curvesState.out=b.dataset.o;
+      document.getElementById("cv-out-lbl").textContent=b.dataset.o==="yes"?"YES wins":"NO wins";
+      refreshCurves();
+    });
+  });
+  refreshCurves();
+})();
+
+// tab switching
+document.querySelectorAll("#tabs .tab").forEach(t=>{
+  t.addEventListener("click",()=>{
+    document.querySelectorAll("#tabs .tab").forEach(x=>x.classList.remove("active"));
+    document.querySelectorAll(".panel").forEach(x=>x.classList.remove("active"));
+    t.classList.add("active");
+    document.getElementById("p-"+t.dataset.m).classList.add("active");
+  });
+});
+
+// jump from intro comparison table rows to specific model tabs
+document.querySelectorAll(".intro-table tr.clickable").forEach(row=>{
+  row.addEventListener("click",(e)=>{
+    if(e.target.closest("a.prod-link")) return;  // let production links open normally
+    const m = row.dataset.jump;
+    const tab = document.querySelector(`#tabs .tab[data-m="${m}"]`);
+    if(tab) tab.click();
+    window.scrollTo({top:0,behavior:"smooth"});
+  });
+});
+
+// initial static draws
+drawVaultBase(document.getElementById("svg-vault"),vaultParams());
+renderLedger("v-ledger",[{k:"Vault P&L",v:0,disp:"—",n:"press play"},{k:"User P&L",v:0,disp:"—",n:""}]);
+drawCpmmBase(document.getElementById("svg-cpmm"));
+document.getElementById("c-yesamt").textContent=fmt(5000);document.getElementById("c-noamt").textContent=fmt(5000);
+document.getElementById("c-yesx").textContent="YES shares";document.getElementById("c-noy").textContent="NO shares";
+document.getElementById("c-k").textContent="k = "+(5000*5000).toLocaleString();
+document.getElementById("c-price").textContent="YES price = 0.500 · NO = 0.500";
+renderLedger("c-ledger",[{k:"LP P&L",v:0,disp:"—",n:"press play"},{k:"User P&L",v:0,disp:"—",n:""}]);
+renderLedger("pr-ledger",[{k:"House P&L",v:0,disp:"—",n:"press play"},{k:"Fastest winner",v:0,disp:"—",n:""}]);
+renderLedger("cl-ledger",[{k:"Market coverage",v:0,disp:"—",n:"press play"},{k:"User",v:0,disp:"—",n:""}]);
+drawLmsrBase(document.getElementById("svg-lmsr"),lmsrParams());
+renderLedger("lm-ledger",[{k:"LP P&L",v:0,disp:"—",n:"press play"},{k:"User P&L",v:0,disp:"—",n:""}]);
+drawPmammBase(document.getElementById("svg-pmamm"),pmammParams());
+renderLedger("pm-ledger",[{k:"LP P&L",v:0,disp:"—",n:"press play"},{k:"User P&L",v:0,disp:"—",n:""}]);
+drawDpmammBase(document.getElementById("svg-dpmamm"),dpmammParams());
+renderLedger("dp-ledger",[{k:"LP P&L",v:0,disp:"—",n:"press play"},{k:"User P&L",v:0,disp:"—",n:""}]);
+drawHybridBase(document.getElementById("svg-hybrid"),hybridParams());
+renderLedger("hb-ledger",[{k:"Vault P&L",v:0,disp:"—",n:"press play"},{k:"User P&L",v:0,disp:"—",n:""}]);
+</script>
+</body>
+</html>
